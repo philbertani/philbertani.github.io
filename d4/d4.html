@@ -1,0 +1,2367 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<title>MBOX Navigator</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+</head>
+
+<!--
+<body onload="webGLStart();" style="overflow:hidden">
+--> 
+
+<body onload="webGLStart()">
+
+    <!-- set oncontextmenu="return false" to nullify right click menu -->
+
+    <div id="canvas01_div" onmouseover="drawScene()" style="position:absolute; top:0px; left:0px; font-size:10px; z-index:-1">
+        <canvas id="canvas01" style="border: none;" oncontextmenu="return true"></canvas>
+    </div>
+
+    <!-- see webGLStart() for creation of user_params -->
+    <div id="user_params">
+    </div>
+  
+    <div id="save_file" style="position:absolute; top:10px; left:10px; z-index:0; font-size:12px; background-color:lightblue; width:208px" >
+
+        <button style="font-size:12px; width:80px" onclick="downloadFile()" >Create File</button>
+        <input type="text" id="download_file" value="fract01.txt" placeholder="filename.txt" style="font-size:12px; width:80px">
+        <br>
+        <output></output> 
+        
+        <!-- this is very cool - just adding the file input type adds a Choose File button which allows one
+             to choose a file which is saved in the file_list object and passed to the callback function
+             add multiple qualifier to choose multiple files -->
+        <input type="file" id="files" name="files[]" style="font-size:12px"/>
+        <output id="file_list"></output>
+    </div>
+
+    <div id="d2" style="position:absolute; top:50px; left:10px; z-index:0; font-size:12px; overflow:scroll;
+     height:220px; width:208px; background-color:lightblue">
+
+    <form autocomplete="off">
+
+            <!--adding a title="" attribute will show the title on hover but there is an annoying delay -->
+            <input type="number" id="zoom_multiplier" value="1.0" style="font-size:10px; width:80px"/> Zoom Factor
+            <br>
+
+            <input type="text" id="current_wheel_param" value="MScale" style="font-size:10px; width:80px"/> Current Param 
+            <br>
+
+            <input type="text" id="mouse_wheel" style="font-size:10px; width:80px"/> Mouse Wheel 
+            <br> 
+
+            <input type="text" id="wheel_param_value" value="1.0" style="font-size:10px; width:80px" /> Wheel Param Value 
+            <br>
+
+            <input type="number" id="wheel_param_delta" value=".002" style="font-size:10px; width:80px"/> Wheel Param Delta 
+            <br>
+
+            <input type="number" id="zoomOutput" value="1.0" disabled style="font-size:10px; width:80px"/> Total Zoom
+            <br>
+
+            </label> <input type="text" id="zoomCenterXInput" value="0.0" style="font-size:10px; width:80px"/> Real Coord
+            <br>
+            </label> <input type="text" id="zoomCenterYInput" value="0.0" style="font-size:10px; width:80px"/> Imag Coord
+            <br>
+
+            <input type="text" id="centerX" style="font-size:10px; width:80px" />  center X<br>
+            <input type="text" id="centerY" style="font-size:10px; width:80px" />  center Y<br>
+            <input type="text" id="width" style="font-size:10px; width:80px"/>  width<br>
+            <input type="text" id="height" style="font-size:10px; width:80px"/>  height <br>
+
+            <input type="number" id="canvas_mult" value="1.0" style="font-size:10px; width:80px" onchange="resizeCanvas()"/> Canvas Mult <br>  
+            <input type="number" id="tex_size_mult" value="0" style="font-size:10px; width:80px" onchange="adjust_texture_size()" /> Tex Size Mult <br> 
+            <input type="number" id="tex_map_num" value="0" style="font-size:10px; width:80px" onchange="load_new_texture()"/> Texture Map #<br>             
+
+            <input type="button" onclick="run_recording()" style="font-size:10px"> Run
+            <input type="button" onclick="stop_running()" style="font-size:10px"> Stop
+            <br>
+ 
+            <input type="number" id="last_frame" value="0" style="font-size:10px; width:80px"> Last Frame <br>
+            <input type="number" id="scene_number" value="0" style="font-size:10px; width:80px"> Current Frame #<br>
+            <input type="number" id="start_frame" value="0" style="font-size:10px; width:80px"> Starting Frame #<br>
+            <input type="number" id="fps" value="10" style="font-size:10px; width:80px"> FPS <br>
+
+            
+            <input type="button" onclick="make_delta_smaller()" style="font-size:10px" /> Reduce Change in Wheel Param
+            <br>
+            <input type="checkbox" id="julia_param_checkbox" onclick="julia_param_from_mouse()" style="font-size:10px" /> Change Params using Mouse
+            <br>
+            <input type="checkbox" onclick="toggle_recenter_julia_params()" style="font-size:10px" /> Toggle Recenter Julia Params
+            <br>
+            <input type="checkbox" id="snapshot_checkbox" onclick="toggle_snapshot()" style="font-size:10px" /> Snapshot Mode
+
+        </form>
+
+    </div>
+
+</body>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+
+
+precision highp     float;
+varying vec2        vPosition;
+uniform float       params[67];
+uniform float       mouse_coords[12];
+uniform float       movement[10];
+
+uniform mat3        rot;
+
+uniform sampler2D   texture1;   //we might get colors from a texture map
+const   float       tol = .0001;
+
+vec2    iResolution;
+vec3    iMouse = vec3(mouse_coords[0]*20.,mouse_coords[1]*20.,0.); 
+float   iTime = params[3];
+int     imax_iter;
+
+const   float     one_third = 1./3.;
+const   float     PI = 3.14159;
+
+#define RAY_STEPS 200
+#define SHADOW_STEPS 50
+#define LIGHT_COLOR vec3(1.) 
+#define FLOOR_COLOR vec3(1.,0.,0.)
+
+vec3    lightpos,lightpos2,moon_pos;
+vec3    ambdir=normalize(vec3(0.,0.,1.));
+const   vec3 origin=vec3(0.,0.,0.);
+
+float   det    = 0.0;  //tolerance for hitting an object increases with distance
+float   detail = .00010 * (1.+params[0]);
+
+//corners of tetrahedron for distance to sierpinksi 3d
+vec3    s1 = vec3(1.,1.,1.);
+vec3    s2 = vec3(-1.,-1.,1.);
+vec3    s3 = vec3(1.,-1.,-1.);
+vec3    s4 = vec3(-1.,1.,-1.);
+float   ifs_scale = 1.666+params[1];
+
+vec3    center_of_hollow_sphere;
+vec3    ifs_color;
+float   norm_dist;
+float   max_dist = 100000.;
+float   max_shadow_dist = 4000.;
+
+float   floor = -.5;
+vec3    floor_vec=normalize(vec3(0.5,-0.3,-1.));
+
+float   night_start=PI+.5,night_end=2.*PI-.5;
+float   thetaL, phiL; //light altitude, azimuth
+float   sun_rnd;
+float   angle_time;
+float   night;
+float   glow_horizon_mult;
+float   global_ldiff;
+vec3    global_lightdir;
+vec3    global_light;
+float   global_totdist;
+float   global_floor_variation;
+float   global_earth_dist;
+float   global_lum;
+vec3    ro;
+float   rnd_ref1, rnd_ref2;
+
+float   pi = PI;
+float   pi_over_2 = 1.57079632;
+float   two_pi = 6.28318530;
+float   too_small = 1.e-6;
+
+vec3    center_of_earth = vec3(0.,-1000.,0.);
+float   radius_of_earth;
+float   sky_angle;
+float   height_expand_sky_angle, adjust_sky_angle;
+
+
+const float gmh=(sqrt(5.)+1.)/2.;
+const float gmi=1./gmh;
+
+//dodecahedron vertices
+vec3 dd01 = vec3(1.,1.,1.);
+vec3 dd02 = vec3(1.,1.,-1.);
+vec3 dd03 = vec3(1.,-1,1.);
+vec3 dd04 = vec3(1.,-1,-1.);
+vec3 dd05 = vec3(-1,1.,1.);
+vec3 dd06 = vec3(-1.,1.,-1);
+vec3 dd07 = vec3(-1.,-1.,1.);
+vec3 dd08 = vec3(-1.,-1.,-1.);
+vec3 dd09 = vec3(0.,gmh,gmi);
+vec3 dd10 = vec3(0.,gmh,-gmi);
+vec3 dd11 = vec3(0.,-gmh,gmi);
+vec3 dd12 = vec3(0.,-gmh,-gmi);
+vec3 dd13 = vec3(gmi,0.,gmh);
+vec3 dd14 = vec3(gmi,0.,-gmh);
+vec3 dd15 = vec3(-gmi,0.,gmh);
+vec3 dd16 = vec3(-gmi,0.,-gmh);
+vec3 dd17 = vec3(gmh,gmi,0.);
+vec3 dd18 = vec3(gmh,-gmi,0.);
+vec3 dd19 = vec3(-gmh,gmi,0.);
+vec3 dd20 = vec3(-gmh,-gmi,0.);
+
+
+float just_a_sphere( vec3 p, float r ) {
+     return length(p) - r;
+}
+
+//the random function everyone uses
+float rand( vec2 co ) {
+    return fract( sin( dot( co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+    
+mat3 rot_xz( float an ) {
+    float can = cos(an);
+    float san = sin(an);
+
+    return mat3( vec3( can, 0., -san ),
+                 vec3( 0. , 1.,   0. ),
+                 vec3( san, 0.,  can ) );
+
+}    
+
+float atanyx(float y, float x) {
+
+        float sign_y = 1.0;
+        if (y < 0.0) sign_y = -1.0;
+        
+        if (abs(x) < too_small) return sign_y * pi_over_2;
+
+        float atanyx = atan(y/x);
+
+        //we need to add multiple of pi depending on the quadrant
+        if (x>0.0 && y>=0.0) {
+            return atanyx;
+        }
+        else if (x<0.0) {
+            return pi + atanyx;
+        }
+        else {
+            return two_pi + atanyx;
+        } 
+
+}
+
+float earth_dist( vec3 p ) {
+    return length(p-center_of_earth ) - radius_of_earth ;
+}
+
+
+//if point stays put after doing the inverse of the usual sierpinski operations then
+//it must be in the sierpinski gasket attractor
+vec2 de_sierp(vec3 z) {
+    
+    vec3 min_vtx;
+    vec3 orig_z = z;
+    int n=0;
+    float min_dist,dist_to_vtx;
+
+    vec3 floor_z;
+    int floor_iter = 5+int(params[21]);
+
+    if ( params[41] != 0. ) {
+       z.xz = sin( z.xz / params[41] );         //repeat using sin instead of mod, more interesting
+       //z.y += global_totdist/(10.+params[40]) + 3.*sin(global_totdist/3.);  //reduce height as we get farther away
+    }
+
+    if ( params[42] != 0. ) {
+        z.xz = mod( z.xz - 5., 10. ) - 5.;
+        //z.y += 3.*sin(global_totdist/10.) + global_totdist/(10.+params[40]);
+    }
+
+    //we can make a ring around the equator by adjusting height!
+    z.y += params[35]; // + sin(iTime/2.);
+    
+    ifs_color = vec3(0.);
+
+    float d,dist,fubar_color, max_fubar;
+    vec3 c;
+
+    for (int i=0; i<100; i++) {
+       
+        if ( float(i) > params[10] ) break;
+
+        min_vtx=s1; min_dist=length(z-s1);
+
+        dist_to_vtx=length(z-s2); 
+        if (dist_to_vtx<min_dist) {min_vtx=s2; min_dist=dist_to_vtx;}
+
+        dist_to_vtx=length(z-s3); 
+        if (dist_to_vtx<min_dist) {min_vtx=s3; min_dist=dist_to_vtx;}
+
+        dist_to_vtx=length(z-s4); 
+        if (dist_to_vtx<min_dist) {min_vtx=s4; min_dist=dist_to_vtx;}
+       
+        z = min_vtx + ifs_scale*(z-min_vtx);
+        
+        n++;
+
+        if ( z.x * z.y > 0. ) ifs_color.x ++;
+        if ( z.y * z.z > 0. ) ifs_color.y ++;
+        if ( z.z * z.x > 0. ) ifs_color.z ++;
+
+        if ( i == floor_iter) floor_z = z;
+
+    }
+
+
+    if ( n < floor_iter ) floor_z = z;
+
+    ifs_color /= float(n);
+
+    float dz = pow(ifs_scale, float(n) );
+    //dz is simply the constant Scale factor to the power of number of times used
+
+    float scene_dist = length(z) / dz;  
+    float objid = 0.;
+
+    float floor_dist = earth_dist(orig_z);
+
+    global_earth_dist = max(global_earth_dist, scene_dist - floor_dist);
+
+    if ( floor_dist < scene_dist ) {
+        scene_dist = floor_dist;
+
+        global_floor_variation = (1.+params[20]) * length(cross(floor_z,floor_vec))/100.;
+        scene_dist -= clamp(  global_floor_variation,-.2,.2);
+
+        objid = 100. ;
+    }
+
+    return vec2( scene_dist, objid );
+}
+
+
+
+
+
+//if point stays put after doing the inverse of the usual sierpinski operations then
+//it must be in the sierpinski gasket attractor
+vec2 de_sierp_d12(vec3 z) {
+    
+    vec3 min_vtx;
+    vec3 orig_z = z;
+    int n=0;
+    float min_dist,dist_to_vtx;
+
+    vec3 floor_z;
+    int floor_iter = 5+int(params[21]);
+
+    if ( params[41] != 0. ) {
+       z.xz = sin( z.xz / params[41] );         //repeat using sin instead of mod, more interesting
+       //z.y += global_totdist/(10.+params[40]) + 3.*sin(global_totdist/3.);  //reduce height as we get farther away
+    }
+
+    if ( params[42] != 0. ) {
+        z.xz = mod( z.xz - 5., 10. ) - 5.;
+        //z.y += 3.*sin(global_totdist/10.) + global_totdist/(10.+params[40]);
+    }
+
+    //we can make a ring around the equator by adjusting height!
+    z.y += params[35]; // + sin(iTime/2.);
+    
+    ifs_color = vec3(0.);
+
+    float d,dist,fubar_color, max_fubar;
+    vec3 c;
+    for (int i=0; i<120; i++) {
+    
+        if ( float(i) > params[10] ) break;
+ 
+   	//to make this dynamic have to pass in a uniform array of floats
+	//then take 3 at a time as vec3()
+        c=dd01; dist=length(z-dd01); fubar_color=1.;
+        d=length(z-dd02); if (d<dist) {c=dd02; dist=d; fubar_color=2.;}
+        d=length(z-dd03); if (d<dist) {c=dd03; dist=d; fubar_color=3.;}
+        d=length(z-dd04); if (d<dist) {c=dd04; dist=d; fubar_color=4.;}
+        d=length(z-dd05); if (d<dist) {c=dd05; dist=d; fubar_color=5.;}
+        d=length(z-dd06); if (d<dist) {c=dd06; dist=d; fubar_color=6.;}
+        d=length(z-dd07); if (d<dist) {c=dd07; dist=d; fubar_color=7.;}
+        d=length(z-dd08); if (d<dist) {c=dd08; dist=d; fubar_color=8.;}        
+        d=length(z-dd09); if (d<dist) {c=dd09; dist=d; fubar_color=9.;}
+
+        d=length(z-dd10); if (d<dist) {c=dd10; dist=d; fubar_color=10.;}
+        d=length(z-dd11); if (d<dist) {c=dd11; dist=d; fubar_color=11.;}
+        d=length(z-dd12); if (d<dist) {c=dd12; dist=d; fubar_color=12.;} 
+        d=length(z-dd13); if (d<dist) {c=dd13; dist=d; fubar_color=13.;}
+
+        d=length(z-dd14); if (d<dist) {c=dd14; dist=d; fubar_color=14.;}
+        d=length(z-dd15); if (d<dist) {c=dd15; dist=d; fubar_color=15.;}
+        d=length(z-dd16); if (d<dist) {c=dd16; dist=d; fubar_color=16.;}
+        d=length(z-dd17); if (d<dist) {c=dd17; dist=d; fubar_color=17.;}
+        d=length(z-dd18); if (d<dist) {c=dd18; dist=d; fubar_color=18.;}
+        d=length(z-dd19); if (d<dist) {c=dd19; dist=d; fubar_color=19.;}
+        d=length(z-dd20); if (d<dist) {c=dd20; dist=d; fubar_color=20.;}
+	
+        if ( z.x * z.y > 0. ) ifs_color.x ++;
+        if ( z.y * z.z > 0. ) ifs_color.y ++;
+        if ( z.z * z.x > 0. ) ifs_color.z ++;
+
+        if ( i == floor_iter) floor_z = z; 
+
+        if (fubar_color > max_fubar ) max_fubar = fubar_color;
+        z = ifs_scale*z - c*(ifs_scale-1.0);
+        n++;
+    }
+
+
+    if ( n < floor_iter ) floor_z = z;
+
+    ifs_color /= float(n);
+
+    float dz = pow(ifs_scale, float(n) );
+    //dz is simply the constant Scale factor to the power of number of times used
+
+    float scene_dist = length(z) / dz;  
+    float objid = 0.;
+
+    float floor_dist = earth_dist(orig_z);
+
+    global_earth_dist = max(global_earth_dist, scene_dist - floor_dist);
+
+    if ( floor_dist < scene_dist ) {
+        scene_dist = floor_dist;
+
+        global_floor_variation = (1.+params[20]) * length(cross(floor_z,floor_vec))/100.;
+        scene_dist -= clamp(  global_floor_variation,-.2,.2);
+
+        objid = 100. ;
+    }
+
+    return vec2( scene_dist, objid );
+}
+
+vec2 de(vec3 p) {
+   
+    //the negative sign on the sphere gets us on the inside of a hollow sphere
+    return max( de_sierp(p), -just_a_sphere(p-center_of_hollow_sphere, params[13]) );
+}
+
+
+//tetrahedral gradient (normal vector)
+vec3 normal(vec3 p, float normal_expand) {
+
+    float normal_dist_expand = params[22] * norm_dist*norm_dist*norm_dist;
+    vec2 dpn = vec2(1.,-1.);
+    vec2 dp  = (.001 + normal_expand + normal_dist_expand) * dpn; 
+
+    vec3 df = dpn.xxx * de(p+dp.xxx).x +
+              dpn.yyx * de(p+dp.yyx).x +
+              dpn.xyy * de(p+dp.xyy).x +
+              dpn.yxy * de(p+dp.yxy).x ;
+
+    return normalize(df); 
+
+}
+
+
+float shadow(vec3 pos, vec3 sdir) {
+
+    float sh=1.0;
+    float totdist = 2.0*det;
+    float dist=10.;
+        
+    for (int steps=0; steps<SHADOW_STEPS; steps++) {
+            
+        //this picks up the detail from raymarch which is a function of distance
+        if (totdist<max_shadow_dist && dist>detail) {
+                vec3 p = pos - totdist * sdir;  //sdir is lightdir and we go in the opposite direction
+                dist = de(p).x;
+                sh = min( sh, max(50.*dist/totdist,0.0) );
+                totdist += max(.01,dist);    
+        }
+        
+    }
+    
+         
+    return clamp(sh,0.1*(params[27]),1.0);
+}
+
+
+float calcAO( const vec3 pos, const vec3 nor ) {
+
+      float aodet=detail*40.;  //40.
+      float totao = 0.0;
+      float sca = 14.0;
+      for( int aoi=0; aoi<40; aoi++ ) {
+        if ( float(aoi) > params[2]) break;
+        float hr = aodet*float(aoi*aoi);        
+        vec3 aopos =  pos + nor * hr;
+        float dd = de( aopos ).x;
+        totao += -(dd-hr)*sca;
+        sca *= 0.7;
+      }
+
+      return clamp( 1.0 - 3.0*totao, 0., 1.0 );
+}
+
+
+
+vec3 light(in vec3 p, in vec3 dir, in vec3 vn, in float hid) {//PASSING IN THE NORMAL
+
+      vec3 lightdir;
+
+      if ( night == 1. ) {
+          lightdir = normalize( moon_pos - p );
+      }
+      else {
+          lightdir = normalize( lightpos - p );
+      }
+
+      global_lightdir = lightdir;
+
+      float sh = 1.;
+    
+      if ( night == 0.)
+          if ( params[27] > 0. ) sh = shadow(p, lightdir) ;
+    
+      float ao=calcAO(p,vn);
+
+      vec3 col = vec3(.06,.08,.12);
+
+      if ( hid == 100. )  //this gives a lower depth a browner color and higher green
+          col = .8*vec3( .3+.3*rand(p.xy), .1+.3*rand(p.yz) +clamp(global_floor_variation,-.1,.4), 0.);
+
+      vec3 refl = reflect(-dir,vn);
+      float diffuse  = max( dot(lightdir,-vn), 0. );   //* sh ;
+
+      float reflect_power = max( dot(lightdir,refl), 0. );  // * sh;
+      float specular = pow( reflect_power, 2. + params[6]); 
+      float specular2 = pow ( reflect_power, 2. );
+
+      float amb = max(.5,dot(dir,-vn)); 
+
+      float total_light = global_lum*3.;
+      //if (night == 1. ) total_light = 1.; 
+
+      total_light *= (1. + .10*sun_rnd);  //add some random fluctuation to total light level
+
+      //amb and specular are just pure variations in brightness right now, no color changes
+      if ( hid == 100. ) {
+
+          float night_mult = 1.;
+          if  (night == 1. ) night_mult = .2;
+      
+          {
+              float lum = diffuse + .25*amb + .6*specular2;
+              col *= lum*night_mult;
+          }
+      }
+      
+      else {
+
+          float night_mult = 1.;
+          if ( night == 1. ) night_mult = .3;
+
+          col *=   (1.+params[8]) * (diffuse + .25*amb) * night_mult;
+
+          col +=   (1.+params[9]) * specular;
+
+          if ( night == 0. ) col += global_light * specular;
+
+          col *=   total_light;
+
+      }                    
+        
+      //we need some extra contrast but not for shadows on the ground
+      //if ( sh == 1. && hid !=100.) col = .5 +  1.2*(col-.5);
+      if ( hid !=100.) col = .5 +  1.2*(col-.5);
+        
+      return sh*ao*col;
+
+}
+
+float check_if_night_time() {
+
+    if ( angle_time > night_start && angle_time < night_end ) {
+
+        float extra = adjust_sky_angle  + 1.;  //PI/2.;
+        float expand = -(PI+2.*extra) / (night_end-night_start);
+        float nthetaL = angle_time - night_start;
+        nthetaL *= expand;
+        nthetaL += extra;
+
+        float nphiL   = phiL + 10./180.*PI;  //moon is 5 degrees from sun (ecliptic) but let's make it more dramatic
+        moon_pos = max_dist * vec3( sin(nthetaL)*sin(nphiL), sin(nthetaL)*cos(nphiL), cos(nthetaL) ) ; 
+
+        return 1.;
+    }
+    else {
+        return 0.;
+    }
+}
+
+vec3 sky_color( vec3 dir, vec3 lightpos, vec3 p ) {
+  
+    vec3 skypos  = dir*max_dist - center_of_earth;
+    vec3 sky;
+
+    night = check_if_night_time();
+  
+    float moondiff = length( -moon_pos - skypos ); 
+    float moon_outline = 1e10;
+
+    if ( moondiff < 8000. )     
+        moon_outline = moondiff*moondiff;
+
+    moondiff *= moondiff;
+ 
+
+    float ldiff = length( -lightpos - skypos ); 
+    float sun_outline = 1e10;
+
+    if (ldiff < 9000. )
+        sun_outline = ldiff*ldiff;
+
+    ldiff *= ldiff;
+
+    float blue_subtract = 0.;
+
+    float adj = adjust_sky_angle;
+    //we are not accounting for the height of the atmosphere so it is a little wonky
+
+    float yellow_start = pi + pi - .01 - adj;  //.01;     
+    float yellow_end   = two_pi + .7  - adj;     
+
+    float yellow_start2 = pi - .7 + adj;  
+    float yellow_end2   = two_pi - pi + .01 + adj; //.01;
+
+    float t1 =angle_time;
+    if ( angle_time < pi && yellow_start > pi) t1 += two_pi;
+
+    if ( t1 > yellow_start && t1 < yellow_end ) {
+        blue_subtract = -(1.-smoothstep(two_pi-adj, yellow_end, t1));
+    }
+    else if ( t1 <= yellow_start && t1 > yellow_start-1. ) {
+        blue_subtract = -smoothstep( yellow_start-1., yellow_start, t1 );
+    }
+    
+
+    float t2 = angle_time;
+    if ( t2 > yellow_start2 && t2 < yellow_end2 ) {
+        blue_subtract = -smoothstep(yellow_start2, pi+adj, t2);
+    }
+    else if ( t2 >= yellow_end2 && t2 < yellow_end2 +.8) {
+        blue_subtract = -(1.-smoothstep(yellow_end2,  yellow_end2+.8, t2 ) );
+    }
+ 
+    //need to adjust blue_subtract so the horizon opposite the sunset is not colored
+
+    float sun_lum  = exp( -ldiff/1e10 ); // * (1.-blue_subtract/1.3) );
+    float sun_lum2 = exp( -ldiff/5e8);
+    float sun_lum3 = exp( -sun_outline/1e8  );
+    
+    float moon_lum = exp( -moondiff/4e9 );
+    float moon_lum2 = exp( -moon_outline/1e8 );
+
+    // skypos.y not skypos.z!
+    float skypos_theta = acos( skypos.y / length(skypos) );
+    skypos_theta /= 2.;
+    float s2 = pow((1.+skypos_theta),.4);
+    skypos_theta *= skypos_theta; 
+
+    sky += vec3(skypos_theta, skypos_theta, s2 + 2.*blue_subtract*skypos_theta*skypos_theta );   //horizon luminance 
+
+    //we still have the problem of the sky getting too dark as the sun is setting
+    //need to lag it more and also add more light to sunside and more dark to opposite horizon
+    global_lum = max( min((1.+.85*sin(angle_time)),1.3), 0.);
+
+    sky *= global_lum;
+    
+    //sky.b = max(sky.b, .7);
+
+    global_light = vec3( sun_lum2, sun_lum2, sun_lum2 + blue_subtract);
+
+
+    sky = (1.-sun_lum)*sky +  .76*vec3( sun_lum, sun_lum , 1.3*(1.+blue_subtract/2.)*sun_lum  ) 
+                           +  .30*global_light 
+                           +  max(.08*(-blue_subtract),.01)*vec3(sun_lum3);  //the outline of the sun becomes sharper as it descends into sunset
+   
+    sky = (1.-moon_lum)*sky + .6*vec3( moon_lum2 ) + .4*vec3(moon_lum, moon_lum, 2.3*moon_lum);
+
+    glow_horizon_mult = 1.-night;  //fix this
+ 
+    //global_light = .5 + .8*(global_light - .5); //reduce the contrast a little
+
+    return  sky;
+
+}
+
+
+vec4 raymarch(in vec3 from, in vec3 dir) 
+{
+
+    float totdist=0.;
+    vec2  d = vec2(1.,0.);
+    vec3  p, col=vec3(0.);
+    float glow = 0.;
+    norm_dist = 0.;
+    float alpha = 0.;
+    float glow_threshold = .01*(1.+params[44]);
+
+    for (int i=0; i<RAY_STEPS; i++) {
+
+        if (d.x>det && totdist<max_dist) {
+
+            global_totdist = totdist;
+
+            p = from + totdist*dir;
+            d = de(p);
+
+            //prevent some aliasing effects by adding some noise to the fading with distance
+
+            //this works well when we are close but washes out detail too quickly as we 
+            //move farther out, annoying, figure it out!
+            det = detail*(1.+totdist*40.*(1.+params[23]))
+                              *(1. + rand( mod(p.xy-1.,2.)-1. )/ (6.+params[24]) );
+
+            totdist+=d.x; 
+
+           
+            if (d.x<glow_threshold) glow += max(0.,glow_threshold-d.x)*exp(-totdist);
+
+        }
+        else { break; }
+
+    }
+
+    //the "sky" is always max_dist away
+    vec3 backg = sky_color( dir, lightpos, p );
+
+    //vec3 backg = sky_color(p, lightpos);  //this does some interesting things
+
+    if (d.x<=det) {
+
+            alpha = 1.;
+  
+            float normal_expand;
+            float color_mult;
+            if ( d.y == 0. )  { 
+                col *= exp(-2.*totdist*totdist);
+                color_mult = params[7];
+                normal_expand = params[12];
+             
+            }      
+            else {
+                col *= exp(-totdist/20.);
+                color_mult = params[29];
+                normal_expand = params[31];
+            }     
+
+            norm_dist = totdist;
+
+            vec3 adjusted_p = p - abs(d.x-det)*dir;                
+            vec3 norm=normal( adjusted_p, normal_expand );
+
+            col = light( adjusted_p, dir, norm, d.y ); 
+
+            float a2 = angle_time;
+            if (angle_time > PI) a2 = -(2.*PI - angle_time);
+
+ 
+            //glow is internal to object so dont worry about sun position
+            //actually when repeat domain is on we probably want glow source to be sun
+            {
+ 
+                //if ( d.y == 0. ) 
+
+                if ( params[39] != 0. && d.y == 0. )
+                //check if we are inside the bounds of the tetrahedron
+                {
+
+
+                  if ( params[45] == 0. ) {
+                    vec3 glow_source = vec3(0.); //dd03;  //s1;  //glow coming from s1 vertex of tetrahedron - for now
+
+                    float glow_source_dist = length(p-glow_source);
+                    vec3 local_glowdir = normalize(p-glow_source);
+
+                    float gtheta = acos( local_glowdir.z/glow_source_dist );
+                    gtheta *= gtheta;
+ 
+                    float glow_lum = exp( -glow_source_dist/1.e6 );
+
+                    //this kind of glow is only effective if we are in the middle 
+                    //of a bunch of objects
+
+                    vec3 backg   = vec3(  1.+glow_lum, glow_lum, 1. + glow_lum ); //+ gtheta);
+
+                    //float lfac=pow(max(0.,dot(normalize(-dir.xz),normalize(global_lightdir.xz))),2.);
+
+                    col += glow * ( backg )* params[39];
+
+                    col -= .3*backg * max(0.,dot(dir,-norm)) * exp(-totdist/1e2); //subtracting some ambient makes the detail pop out!
+
+                    //col += lglow*min(1.,totdist*totdist*.3);  //not doing anything
+                  }
+                  else {
+
+
+                    float lfac = max(0.0, dot( -dir, global_lightdir ) );          
+                    vec3 lglow = pow(lfac,2.+params[30]) * vec3(1.);
+
+                    col += glow * (.5+.8*(global_light-.5)) * (8.+params[39]);
+                    //col += lglow*min(1.,totdist*totdist*.3)*(1.+params[45]);
+
+                    
+                  }
+
+                }
+
+            }
+
+            //this is not the best place to add color
+            //hard to control luminance
+            col += color_mult*vec3(cos(params[17])*ifs_color.x,
+                                   cos(params[18])*ifs_color.y,
+                                   cos(params[19])*ifs_color.z);
+
+            
+    } else { 
+
+            col=backg;
+
+    }
+
+    return vec4(col, alpha); 
+
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+
+
+    vec2 uv = (2.0*fragCoord-iResolution.xy)/iResolution.y;
+
+    //ro = vec3( movement[0] + sin(iTime) , movement[1]  , 2.*cos(iTime) + movement[2] );
+    ro = vec3( movement[0] , -.5+ movement[1]  , 4. + movement[2] );
+        
+    float  focal_point = params[14];
+
+    // 0,0,1.5 is actually -PI/2 angle not zero so compensate 
+    //mat3 look_at_origin = rot_xz( -atanyx( ro.z, ro.x) + PI/2. );
+    //vec3   rd =  look_at_origin * rot * normalize(vec3(uv,focal_point));
+
+    vec3   rd =  rot * normalize(vec3(uv,focal_point));
+
+    //camera_direction is simply the "z" axis of rot (the rotation matrix)
+
+    vec3 dir = normalize( vec3( movement[3], movement[4], movement[5] ) );
+
+    //angle_time = mod(iTime, 2.*PI);
+    angle_time = mod(params[36], 2.*PI);
+
+    //angle_time -= ro.z/50.;  //sun gets higher as we move "east" which is 0,0,-1 direction
+
+    thetaL    = -angle_time;
+
+    phiL      = params[4];
+    lightpos  = max_dist * vec3( sin(thetaL)*sin(phiL), sin(thetaL)*cos(phiL), cos(thetaL) )  + center_of_earth;       
+    sun_rnd   = cos(iTime+rand(lightpos.xy));  //to add some shimmering to sun
+    floor_vec += vec3(params[32],params[33],params[34]);        
+
+    float theta2 = thetaL + 1.;
+    lightpos2  = max_dist * vec3( sin(theta2)*sin(phiL), sin(theta2)*cos(phiL), cos(theta2) )  + center_of_earth;
+
+    center_of_hollow_sphere = ro;
+
+    floor += params[28];
+
+    radius_of_earth = length( center_of_earth ) - 1.;
+    float resq = radius_of_earth*radius_of_earth;
+    float eye = radius_of_earth - ro.y;
+
+    if ( eye >= radius_of_earth ) {
+        // if (eye*eye < resq we have negative square root which is a problem here - however much I love imaginary numbers)
+        //we are measuring HALF of the angle here so multiply by 2!
+        sky_angle = two_pi - atanyx( radius_of_earth * pow( eye*eye - resq, .5) ,  eye*eye - resq ) * 2.;
+        //sky_angle should be somewhere between pi and pi+some extra but it is not working right
+    }
+    else {
+        sky_angle = 0.;
+    }
+    //we need to shrink the range of the blue sky as we get higher
+   
+    height_expand_sky_angle = sky_angle/pi;
+
+    adjust_sky_angle = 0.;
+    if ( ro.y < 0. )  
+        adjust_sky_angle = -ro.y;  //kluged using simply the linear height   
+        //(sky_angle - pi)/2.;
+
+    night_start += adjust_sky_angle;
+    night_end   -= adjust_sky_angle;
+    
+    global_earth_dist = -1e20;
+
+    vec4 color=raymarch(ro,rd);
+ 
+    color.xyz=clamp(color.xyz,0.,1.);
+    
+    fragColor = color;
+}
+        
+/////////////////////// End of ShaderToy //////////////////////////////////////
+
+
+///// dummy main to call ShaderToy mainImage ////////////////////
+void main() {
+     
+    vec4  fragColor;
+
+    iResolution = vec2(mouse_coords[7], mouse_coords[8]);
+    iMouse      = vec3(mouse_coords[0], mouse_coords[1], 0.0);
+    iTime       = params[3];  //override the shadertoy time input with our parameter
+    
+    vec2 fragpos = vPosition + .5*iResolution;
+    mainImage( fragColor, fragpos );
+    
+    gl_FragColor = fragColor;
+}
+
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec2        aVertexPosition;
+    attribute vec2        aPlotPosition;
+    varying   vec2        vPosition;
+      
+
+    //START OF GPU PROGRAM       
+    void main(void) {
+        //aVertexPosition always fills in a square that is -1 to 1 on both x and y
+        //that gets mapped to the corners of the canvas window
+        gl_Position = vec4(aVertexPosition, 1.0, 1.0);
+
+        //aPlotPosition is a moveable and rescaleable square in the complex plane
+        vPosition = aPlotPosition;  
+
+        //both aVertexPosition and aPlotPosition are the same size grid determined
+        //by the height and width of the canvas is pixels
+        //aPlotPosition is the "real" world coordinate, aVertexPosition is the internal "clipspace" coordinate
+    }
+    //END OF GPU PROGRAM
+</script>
+
+
+<!-- Shader program for the on-screen image -->
+
+<script type="x-shader/x-vertex" id="vshader">
+
+    attribute vec2   a_coords;
+    attribute vec2   a_texCoords;
+    varying   vec2   v_texCoords;
+
+    void main() {
+ 
+        //we really only need v_texcoords to be filled in here
+        //not really interested in 3d transformations of 2d fractal images for now
+
+        gl_Position       = vec4(a_coords, 0.0, 1.0);
+        v_texCoords       = a_texCoords;
+    }
+
+</script>
+
+<script type="x-shader/x-fragment" id="fshader">
+    #ifdef GL_FRAGMENT_PRECISION_HIGH
+       precision highp float;
+    #else
+       precision mediump float;
+    #endif
+
+    uniform sampler2D   texture;
+    varying vec2        v_texCoords;
+
+    uniform   float     params[67];
+    uniform   float     mouse_coords[12];
+    //uniforms are constant junk coming in from javascript or whatever lang is linked to gl shaders
+    uniform   float     offset_x[25];
+    uniform   float     offset_y[25];
+    uniform   float     offset_weights[25];
+    uniform   float     offset_params[16];
+    // 0 : sum of weights, 1 : size of pixel in texture map 
+    // offset_params[1] contains the offset for one pixel in the texture map
+
+    void main() {
+      
+        //offset_weights contain a 2d gaussian kernel  
+        //weights are normalized
+      
+        vec3 total_color = vec3(0.0,0.0,0.0);
+
+        //try doing something interesting with information from the alpha channel color.a, color[4]
+
+        for (int i=0; i<5; i++) {
+            for (int j=0; j<5; j++) {
+                vec4 color = texture2D(texture, v_texCoords + vec2( i-2,j-2 ) * offset_params[1] );
+                total_color += color.xyz * offset_weights[i*5 + j];
+            }
+        }
+
+        //total_color = pow(total_color, vec4(1.3) );
+
+        if ( params[37] != 0. ) {
+            total_color = .5 + (1. + params[37] ) * (total_color - .5);
+            //total_color *= 2.;
+        }
+
+
+        if  (params[46] != 0. )
+            total_color = pow(total_color, vec3(.4545+params[46]) ); //Gamma
+
+        gl_FragColor = vec4(total_color, 1.);
+        
+    }
+
+</script>
+
+<script src="texture_map_images.js"> </script>
+
+<script type="text/javascript">
+    // main inline js follows
+    // window.location.href is the url of this page
+    
+    //var color_map_urls =[];
+
+    var pi              = 3.141592650;
+    var pi_over_2       = 1.570796325;
+    var three_pi_over_2 = 4.712388975;
+    var two_pi          = 6.303185300;
+
+    // what the hell are querySelectors for?
+    var container = document.querySelector('#save_file');
+    var output = container.querySelector('output');
+    const MIME_TYPE = 'text/plain';
+
+    //WE SHOULD JUST MAKE THIS A HASH MAP 
+    var params = ["Detail"/*0*/,"MScale"/*1*/,"AO Iter"/*2*/,"Time"/*3*/,
+                  "Light X"/*4*/,"Scale Fac"/*5*/,"Ref Light Pow"/*6*/,
+                  "Color Quotient1"/*7*/,"Normal Light"/*8*/,"Ref Light"/*9*/,
+                  "MBox Iter"/*10*/,"MBox p1"/*11*/,
+                  "Normal expand"/*12*/,"Tunnel Radius"/*13*/,"Focal Point"/*14*/,
+                  "Box Clamp Offset"/*15*/,"Light Distance"/*16*/,"Red Freq"/*17*/,"Green Freq"/*18*/,
+                  "Blue Freq"/*19*/,"Floor fuck"/*20*/,"Floor Iter"/*21*/,
+                  "Norm Dist Fac"/*22*/,"Detail Dist Fac"/*23*/,"Random Div"/*24*/,
+                  "Light Y"/*25*/,"Light Z"/*26*/,"Shadow"/*27*/,"Floor"/*28*/,
+                  "Floor Color"/*29*/,"Glow"/*30*/,"Floor Normal"/*31*/,
+                  "Fx"/*32*/,"Fy"/*33*/,"Fz"/*34*/,"Height"/*35*/,"Angle Time"/*36*/,
+                  "Contrast"/*37*/,"Sun"/*38*/,"Glow On/Off"/*39*/,
+                  "Y totdist"/*40*/,"Repeat"/*41*/,"Repeat2"/*42*/,"Fog"/*43*/,
+                  "Glow Thresh"/*44*/,"Other Glow"/*45*/,"Gamma"/*46*/,"Num Vertices"/*47*/];
+                             
+
+    //                              0,     1,    2,  3,  4,  5,  6,  7,  8,   9, 10,   
+    var initial_values       =  [  0.,   .24,    4, 0., 0., 0., 14, 0., 0.,  .1,  7,
+
+    //                             11,  12, 13,  14, 15,  16, 17, 18, 19, 20, 21, 22,  
+                                 .035,  0., 0., -2., 0., -.8, 0., 0., 0., 0., 0., 0.,
+
+    //                             23, 24, 25, 26, 27, 28, 29, 30, 31, 32,  33,  34,
+                                    2, 60,  0,  0, .1,  0,  0,  0,  0, .4, 1.1, .04,
+
+    //                             35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47
+                                   .5,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0.
+                                ];
+
+    //                              0,  1,  2,  3,  4,   5,   6,  7,  8,  9, 10, 
+    var param_default_deltas =  [  .1, .1,  1, .1, .1,  .1,  .1, .1, .1, .1,  1,
+
+    //                             11,  12,  13,  14, 15, 16, 17, 18, 19, 20, 21,   22, 
+                                  .01, .01,  .1,  .1, .1, .1, .2, .2, .2, .1,  1, .001,
+
+    //                             23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+                                   .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1,
+
+    //                             35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47
+                                   .1, .1, .1,  1, .1,  1,  1,  1, .1, .1, .1, .1, 1
+                                ];
+
+
+    //a set of points relatuve to 0,0 for calculating averages around each iterated pixel
+    var offset = { "x":[],"y":[],"weights":[],"params":[],
+                   "x_loc":null,"y_loc":null,"weights_loc":null,"params_loc":null,
+                   "radius":4.0,"init_angle":0.0,"num_points":25.0,"winding_number":8.0,"sum_weights":0.0};
+ 
+    //http://dev.theomader.com/gaussian-kernel-calculator/
+    //gaussian_kernel is just a way to take the weighted average of 25 points in a 5x5 grid centered on the current pixel
+    //would prefer bilateral filter but that is too much work right now
+    var gaussian_kernel_one_stdev = [
+        0.003765,0.015019,0.023792,0.015019,0.003765,
+        0.015019,0.059912,0.094907,0.059912,0.015019,
+        0.023792,0.094907,0.150342,0.094907,0.023792,
+        0.015019,0.059912,0.094907,0.059912,0.015019,
+        0.003765,0.015019,0.023792,0.015019,0.003765
+    ]
+
+    var gaussian_kernel_half_stdev = [
+        0.000002,0.000212,0.000922,0.000212,0.000002,
+        0.000212,0.024745,0.107391,0.024745,0.000212,
+        0.000922,0.107391,0.466066,0.107391,0.000922,
+        0.000212,0.024745,0.107391,0.024745,0.000212,
+        0.000002,0.000212,0.000922,0.000212,0.000002
+    ]
+
+    var params_location;
+    var params_location2;  //to send to the on screen shader  
+
+    var mouse_coords_loc;
+    var mouse_coords_loc2; 
+    var movement_loc;
+    var movement_data = [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.];  //a, s, d, f, i, k keys for (yaw left, backwards, yaw right, forwards, pitch up, pitch down)
+
+    var rot_loc;
+
+    //texture map coord stuff to be passed to the on screen shaders
+    var a_coords_loc;
+    var a_texCoords_loc; 
+    var u_texture;
+    var u_texture1;
+
+    var gl;
+    var prog_canvas;
+    var prog_texture;
+
+    var aVertexPosition;
+    var vertexPositionBuffer;
+    var texturePositionBuffer;
+    var canvasPositionBuffer;
+    var canvasIndexBuffer;
+  
+    var framebuffer;
+    var texture;
+    var color_map_texture;
+
+    var zoom = [];
+    //need to keep track of mandel vs julia coordinates separately
+    var current_center_x = [];
+    var current_center_y = [];
+    var current_width    = [];
+    var current_height   = [];
+    var current_zoom     = [1.0,1.0];
+
+    //toggles
+    var recenter_julia_params = 0;
+    var snapshot_mode = 1;
+    var julia_mouse = 1;
+
+    var aspect_ratio = 1.0;
+
+    //vars for saving parameters for every different frame
+    var zoom_save = [];
+    var scene_counter = 0;
+    var scene_number  = 0;
+
+    var ray_origin = [ 0., 0., 0. ]; 
+    var camera_direction = [ 0., 0., 1.];
+    var rotation_rate = 2*Math.PI/60;
+    var cosa = Math.cos(rotation_rate), sina = Math.sin(rotation_rate);
+
+    var rot3d = [ 1., 0., 0.
+                 ,0., 1., 0.
+                 ,0., 0., 1. ];
+
+    var zaxis_speed = .1;
+
+    var xz, yz, xy; 
+    var current_mat = [1.,0.,0.,
+                       0.,1.,0.,
+                       0.,0.,1.];
+
+    //maybe we will have different rates for each plane at some point - later dude
+
+// *********************** end of globals *************************
+
+    function next_rot3d(dir, next_mat) {
+
+        //pass in a copy of next_mat which is (xz, yz, or xy)
+       
+        //dir is for rotation sense (clockwise, anticlockwise), +1 or -1
+        //we don't need to know which plane since there will 0s in the spots
+        //of concern
+        next_mat[2] *= dir;
+        next_mat[5] *= dir;
+        next_mat[1] *= dir;
+        next_mat[6] *= dir;
+        next_mat[7] *= dir;
+        next_mat[3] *= dir;
+           
+        //need to save which planar rotation we are using if we are moving forward
+        //or backward
+        current_mat = [...next_mat];
+ 
+        var tmp_rot = [...rot3d];  //need to store a copy of rot3d to use here
+
+        for (var i=0; i<3; i++) {
+            for (var j=0; j<3; j++) {
+                rot3d[i*3+j] = 0.;
+                for (var k=0; k<3; k++) {
+                    rot3d[i*3+j] += next_mat[i*3+k] * tmp_rot[j + k*3];
+                } 
+            }
+        }
+
+        //compute the new camera direction
+        var tmp_cam = [0.,0.,1];
+ 
+        /*
+        for (var i=0; i<3; i++) {
+            camera_direction[i] = 0.;
+            for (var j=0; j<3; j++) {
+                camera_direction[i] += rot3d[i*3+j] * tmp_cam[j]; 
+            }
+        }
+        */
+
+        //the camera direction is always along the "z" axis
+        //which is the 3rd row of the accumulated rotation matrix
+        camera_direction[0] = rot3d[6];
+        camera_direction[1] = rot3d[7];
+        camera_direction[2] = rot3d[8];
+ 
+    }
+
+    function update_rotation_basis() {
+
+        //we are incrementally doing planar rotations and rotation_rate does not 
+        //change unless we explicitly change it
+
+        cosa = Math.cos(rotation_rate);
+        sina = Math.sin(rotation_rate);
+
+        xz = [ cosa,   0., -sina,
+                 0.,   1.,    0.,
+               sina,   0.,  cosa ];
+
+        yz = [   1.,   0.,    0.,
+                 0., cosa, -sina,
+                 0., sina,  cosa ];
+
+        xy = [ cosa, -sina,    0.,
+               sina,  cosa,    0.,
+                 0.,    0.,    1. ];
+
+    }
+
+    function toggle_recenter_julia_params() {
+        recenter_julia_params ^= 1;
+    }
+   
+    function toggle_snapshot() {
+        snapshot_mode ^=1;
+    }
+
+    var queue_up_snapshot = 0;
+    // this function gets called when we select a file
+    function handleFileSelect(evt) {
+        var files = evt.target.files; // FileList object
+
+        var reader = new FileReader();
+ 
+        // file read is asynch so we need to specify a function that gets called when it is done
+        reader.onload = function(e) {            
+            var JSON_object = JSON.parse(e.target.result);
+ 
+            //JSON.parse produces an associative map of objects
+            //we need an array of objects
+            //override the original zoom_save
+            //this .map is a short way of writing a loop over the keys
+            zoom_save = Object.keys(JSON_object).map(function(k) { return JSON_object[k] });
+ 
+            document.getElementById("start_frame").valueAsNumber = 0;
+            document.getElementById("scene_number").valueAsNumber = 0;
+            document.getElementById("last_frame").valueAsNumber = zoom_save.length;
+            scene_counter = zoom_save.length;
+
+            if (scene_counter == 1) {
+                //this must have been a snapshot so queue it up
+                scene_number = 0;
+                queue_up_snapshot = 1;
+                drawScene();
+            }
+            else {
+
+                scene_number = scene_counter - 1; 
+                queue_up_snapshot = 1;
+                document.getElementById("start_frame").valueAsNumber = Math.max( 0, scene_number - 100);
+                document.getElementById("scene_number").valueAsNumber = scene_number;
+                drawScene();
+            }
+
+        }
+
+        reader.readAsText(files[0]);   
+    }
+
+    var downloadFile = function() {
+
+        var prevLink = output.querySelector('a');
+        if (prevLink) {
+            window.URL.revokeObjectURL(prevLink.href);
+            output.innerHTML = '';
+        }
+
+        var bb;
+        if (snapshot_mode == 1) {
+            bb = new Blob([JSON.stringify(snapshot)], {type: MIME_TYPE});
+        }
+        else {
+            bb = new Blob([JSON.stringify(zoom_save)], {type: MIME_TYPE});
+        }
+
+
+        var a = document.createElement('a');
+        a.download = container.querySelector('input[type="text"]').value;
+        a.href = window.URL.createObjectURL(bb);
+        //a.textContent = 'Download Animation File';
+
+        a.dataset.downloadurl = [MIME_TYPE, a.download, a.href].join(':');
+
+        //a.draggable = true;
+        //a.classList.add('dragout');
+
+        output.appendChild(a);
+   
+        a.click();     
+
+        /*
+        a.onclick = function(e) {
+    
+        }
+        */
+
+        cleanUp(this);
+    }
+
+    var cleanUp = function(a) {
+
+        //a.textContent = 'Downloaded';
+
+        // dont understand why this is not working
+        //a.dataset.disabled = true;
+
+        // Need a small delay for the revokeObjectURL to work properly.
+        setTimeout(function() {
+            window.URL.revokeObjectURL(a.href);
+        }, 1500);
+    };
+
+    var init_tex_size = 1024.0;
+    var tex_size = init_tex_size;  //we should really make this proportional to the canvas size
+                                   //although with it much larger all the time we do get nice anti aliasing automatically
+
+
+    function init_Buffers() {
+
+        params_location   = gl.getUniformLocation(prog_texture, "params");
+        params_location2  = gl.getUniformLocation(prog_canvas, "params");
+        mouse_coords_loc  = gl.getUniformLocation(prog_texture, "mouse_coords");
+        mouse_coords_loc2 = gl.getUniformLocation(prog_canvas, "mouse_coords");
+        movement_loc      = gl.getUniformLocation(prog_texture, "movement");
+        rot_loc           = gl.getUniformLocation(prog_texture, "rot");
+    
+        aVertexPosition   = gl.getAttribLocation(prog_texture, "aVertexPosition");
+        gl.enableVertexAttribArray(aVertexPosition);
+
+        aPlotPosition     = gl.getAttribLocation(prog_texture, "aPlotPosition");
+        gl.enableVertexAttribArray(aPlotPosition);
+
+        texturePositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, texturePositionBuffer);
+        var tex_vertices = [
+            0.0, 0.0,
+            1.0, 0.0,
+            1.0, 1.0,
+            0.0, 1.0
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(tex_vertices), gl.STATIC_DRAW);
+        texturePositionBuffer.itemSize = 2;
+        texturePositionBuffer.numItems = 4;
+ 
+        canvasPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, canvasPositionBuffer);
+        var canvas_vertices = [
+            -1.0, -1.0,
+             1.0, -1.0,
+             1.0,  1.0,
+            -1.0,  1.0
+        ]
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(canvas_vertices), gl.STATIC_DRAW);
+        canvasPositionBuffer.itemSize = 2;
+        canvasPositionBuffer.numItems = 4
+
+        //we need to use drawelements so we need to supply the indices of triples of vertices to draw each triangle
+        canvasIndexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, canvasIndexBuffer);
+        var triangle_indices = [ 0,1,2, 0,2,3 ];
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(triangle_indices), gl.STATIC_DRAW);
+        canvasIndexBuffer.itemSize = 3;
+        canvasIndexBuffer.numItems = 2;
+
+        adjust_texture_size();
+        
+        vertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBuffer);
+        var vertices = [
+             1.0,  1.0,
+            -1.0,  1.0,
+             1.0, -1.0,
+            -1.0, -1.0,
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        vertexPositionBuffer.itemSize = 2;
+        vertexPositionBuffer.numItems = 4;
+
+        a_coords_loc =  gl.getAttribLocation(prog_canvas, "a_coords");
+        a_texCoords_loc =  gl.getAttribLocation(prog_canvas, "a_texCoords");
+
+        u_texture  = gl.getUniformLocation(prog_canvas, "texture");
+        u_texture1 = gl.getUniformLocation(prog_texture, "texture1");
+
+        //location variables are only non null if the data is actually used in a non trivial way in a shader
+        offset.x_loc       = gl.getUniformLocation(prog_canvas, "offset_x");
+        offset.y_loc       = gl.getUniformLocation(prog_canvas, "offset_y");
+        offset.weights_loc = gl.getUniformLocation(prog_canvas, "offset_weights");
+        offset.params_loc  = gl.getUniformLocation(prog_canvas, "offset_params");
+
+        init_offsets();
+
+    }
+
+    function adjust_texture_size() {
+
+        var ext  = gl.getExtension('OES_texture_float');
+        var ext2 = gl.getExtension('OES_texture_float_linear');
+
+        var tex_size_mult = document.getElementById("tex_size_mult").valueAsNumber;
+        tex_size = init_tex_size * Math.pow(2.0,tex_size_mult);  //must be a power of 2
+        texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, tex_size, tex_size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, tex_size, tex_size, 0, gl.RGBA, gl.FLOAT, null);
+        //With null as the last parameter, the previous method allocates memory for the texture and fills it with zeros.
+
+        //gl.LINEAR blends 4 texture pixels for each on screen pixel
+        //gl.NEAREST only takes the nearest after scaling up or down
+     
+        // MAG is magnification and is in effect if the model face size is larger than texture size
+        // MIN is minification and blah blah
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        // The previous line sets the minification filter to gl.LINEAR so we won't neet mipmaps
+         
+        framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer);  // select the framebuffer, so we can attach the texture to it
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        // The previous line attaches the texture to the framebuffer for use as the color buffer.
+      
+        // Check form WebGL errors (since I'm not sure all platforms will be able to create the framebuffer) 
+        if (gl.getError() != gl.NO_ERROR) {
+            throw "Some WebGL error occurred while trying to create framebuffer.";
+        }
+
+    }
+
+    function init_offsets() {
+        var r = 0.0;
+        var angle = offset.init_angle;
+        var delta_angle = two_pi / offset.num_points * offset.winding_number;
+        var delta_r = offset.radius / offset.num_points;
+        var delta_weight = 0.0;  //(1.0-.5)/offset.num_points;
+        var weight = 1.0;
+        for (var i=0; i<offset.num_points; i++) {
+            offset.x.push(r*Math.cos(angle));
+            offset.y.push(r*Math.sin(angle));
+            offset.weights.push(gaussian_kernel_one_stdev[i]);
+            offset.sum_weights += weight;
+            r += delta_r;
+            angle += delta_angle;
+            weight -= delta_weight; //linear for now
+        }
+
+        offset.params.push(offset.sum_weights);
+        var one_pixel = 1.0 / tex_size;
+        offset.params.push(one_pixel);
+
+        //can't push an array onto array - it becomes a different type of object - dillhole
+        //offset.weights.push(gaussian_kernel);
+
+    }
+
+    // use aspect ratio of actual canvas to prevent displaying a stretched image
+    var baseCorners = [];
+    var initial_height, initial_width;
+    function initialize_corners()
+    {
+        var cornerIx;
+        corners = [];
+
+        for (cornerIx in baseCorners) {
+            x = baseCorners[cornerIx][0];
+            y = baseCorners[cornerIx][1];
+            corners.push(x);
+            corners.push(y);
+
+            current_center_x[0] = (corners[0] + corners[2]) / 2.0;
+            current_center_y[0] = (corners[3] + corners[5]) / 2.0;
+            current_width[0] = corners[0] - current_center_x[0];
+            current_height[0] = corners[1] - current_center_y[0];
+
+            current_center_x[1] = (corners[0] + corners[2]) / 2.0;
+            current_center_y[1] = (corners[3] + corners[5]) / 2.0;
+            current_width[1] = corners[0] - current_center_x[1];
+            current_height[1] = corners[1] - current_center_y[1];
+ 
+            initial_height = current_height[0];         
+            //initial_height = current_width[0];
+            initial_width  = current_width[0];
+        }
+    }
+
+    var snapshot = [];
+    var julia_x = 0.0, julia_y = 0.0;
+
+    function drawScene() {
+   
+        gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer);
+        gl.useProgram(prog_texture);
+
+        gl.disable(gl.DEPTH_TEST); 
+        //gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.viewport(0, 0, tex_size, tex_size);
+
+        gl.clearColor(0,0,0,1);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBuffer);
+        gl.vertexAttribPointer(aVertexPosition, vertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        var plotPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, plotPositionBuffer);
+
+        var param_data = [];
+        snapshot = [];
+        var details_at_time_n;
+        var mouse_coords = [];
+ 
+        var movement_array = []; 
+
+        //console.log(camera_direction);
+        movement_array.push(...ray_origin, ...camera_direction);
+        movement_array.push(movement_data[8],movement_data[9]);
+
+        //var movement_array = [].concat(movement_data);
+
+        mouse_coords.push(mousex);
+        mouse_coords.push(mousey);
+        //only use the mouse coords as the julia param if we are not zooming and mixing
+        mouse_coords.push(~zoom_and_mix_instead_of_changing_zparam);
+        mouse_coords.push(current_center_x[doing_julia] + current_width[doing_julia] * mousex);
+        mouse_coords.push(current_center_y[doing_julia] + current_height[doing_julia] * mousey);
+        mouse_coords.push(current_width[doing_julia]);
+        mouse_coords.push(current_height[doing_julia]);
+        mouse_coords.push(gl.canvas.clientWidth);
+        mouse_coords.push(gl.canvas.clientHeight);
+        mouse_coords.push(julia_x);
+        mouse_coords.push(julia_y);
+        mouse_coords.push(current_zoom[doing_julia]);
+
+        // total zoom gets messed up if we stop before the end and then zoom again manually
+        if ( running || queue_up_snapshot)  {
+            // if we are running a recording then get parameters from the saved data array         
+            details_at_time_n = zoom_save[scene_number];
+
+            param_data                    = details_at_time_n['param_details'];
+            for (var i in param_data) {
+                document.getElementById(params[i]).value = param_data[i];
+            }  
+
+            doing_julia                   = 0; //details_at_time_n['doing_julia'];
+
+            current_center_x[doing_julia] = details_at_time_n['center_x'];
+            current_center_y[doing_julia] = details_at_time_n['center_y'];
+            current_width[doing_julia]    = details_at_time_n['width'];
+            current_height[doing_julia]   = details_at_time_n['height'];
+
+            mouse_coords                  = details_at_time_n['mouse_coords']; 
+            if ( mouse_coords === undefined ) {
+                mouse_coords = [0,0,0,0,0,0,0,0,0,0,0,0];
+            }
+
+            var tmp_zoom                  = details_at_time_n['total_zoom'];
+            if ( tmp_zoom === undefined ) {
+               current_zoom[doing_julia] = initial_height / current_height[doing_julia];
+            }
+            else {
+               current_zoom[doing_julia] = tmp_zoom;
+            }
+  
+            julia_toggle = 0; //document.getElementById("Julia_Toggle").valueAsNumber;
+
+            if ( mouse_coords ) {
+                julia_x = mouse_coords[9];
+                julia_y = mouse_coords[10];
+                if (doing_julia==1 && julia_toggle==1) {
+                    //reset mandel so it goes to the right place for this julia set
+                    current_center_x[0] = julia_x;
+                    current_center_y[0] = julia_y;
+                }
+            }
+            queue_up_snapshot = 0;       
+        }
+        else {
+            // not running a recording, get parameters from the user input form
+            for (var i in params) {
+                param_data.push(document.getElementById(params[i]).value);
+            }
+            var zoom_details = {};
+            zoom_details['scene_number']  = scene_counter;
+            zoom_details['center_x']      = current_center_x[doing_julia];
+            zoom_details['center_y']      = current_center_y[doing_julia];
+            zoom_details['width']         = current_width[doing_julia];
+            zoom_details['height']        = current_height[doing_julia];
+            zoom_details['total_zoom']    = current_zoom[doing_julia];
+            zoom_details['param_details'] = param_data;
+            zoom_details['mouse_coords']  = mouse_coords;
+            zoom_details['doing_julia']   = doing_julia;
+            zoom_save.push(zoom_details);
+
+            zoom_details['scene_number'] = 0;
+            snapshot.push(zoom_details);
+
+            document.getElementById("last_frame").value = scene_counter;
+            scene_counter ++;
+        }
+
+        var cornerIx;
+        corners = [];
+        var xwp = current_center_x[doing_julia] + current_width[doing_julia];
+        var xwn = current_center_x[doing_julia] - current_width[doing_julia];
+        var ywp = current_center_y[doing_julia] + current_height[doing_julia];
+        var ywn = current_center_y[doing_julia] - current_height[doing_julia];
+
+        corners.push(xwp);   //(current_center_x + current_width);
+        corners.push(ywp);   //(current_center_y + current_height);
+        corners.push(xwn);   //(current_center_x - current_width);
+        corners.push(ywp);   //(current_center_y + current_height);
+        corners.push(xwp);   //(current_center_x + current_width);
+        corners.push(ywn);   //(current_center_y - current_height);
+        corners.push(xwn);   //(current_center_x - current_width);
+        corners.push(ywn);   //(current_center_y - current_height);
+
+        //zooming and translation happens by rescaling the coordinates of the Vertex Shader
+        //although since we are not doing any geometric transformations we could have just
+        //done it in the Fragment Shader
+        document.getElementById("centerX").value = current_center_x[doing_julia];
+        document.getElementById("centerY").value = current_center_y[doing_julia];
+        document.getElementById("width").value = current_width[doing_julia];
+        document.getElementById("height").value = current_height[doing_julia];
+        document.getElementById("zoomOutput").value = current_zoom[doing_julia];
+
+        //this is the statement that actually passes the pointer of data from 
+        //javascript to shader function in GPU
+        gl.uniform1fv(params_location, new Float32Array(param_data));
+        gl.uniform1fv(mouse_coords_loc, new Float32Array(mouse_coords));
+
+        //wtf is it so roundabout to get data here?
+        gl.uniform1fv(movement_loc, new Float32Array(movement_array));
+
+        gl.uniformMatrix3fv(rot_loc, false, [...rot3d]);
+
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(corners), gl.STATIC_DRAW);
+        gl.vertexAttribPointer(aPlotPosition, 2, gl.FLOAT, false, 0, 0);
+
+        gl.enableVertexAttribArray(aVertexPosition);
+        gl.enableVertexAttribArray(aPlotPosition);
+
+        gl.uniform1i(u_texture1, 1);
+
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        gl.deleteBuffer(plotPositionBuffer);
+
+        //now render the texture to canvas
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null); // The null means to use the default framebuffer (which draws onscreen)
+        gl.useProgram(prog_canvas);
+        gl.uniform1i(u_texture, 0);  // this program uses only texture unit 0
+
+        gl.clearColor(0,0,0,1);
+        gl.clear(gl.COLOR_BUFFER_BIT); // | gl.DEPTH_BUFFER_BIT);
+
+        //gl.enable(gl.DEPTH_TEST);  //we do not really need it since we are 2d
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, canvasPositionBuffer); 
+        gl.vertexAttribPointer(a_coords_loc, 2, gl.FLOAT, false, 0, 0);
+
+        gl.uniform1fv(offset.x_loc, new Float32Array(offset.x));
+        gl.uniform1fv(offset.y_loc, new Float32Array(offset.y));
+        gl.uniform1fv(offset.weights_loc, new Float32Array(offset.weights));
+        gl.uniform1fv(offset.params_loc, new Float32Array(offset.params));
+        gl.uniform1fv(params_location2, new Float32Array(param_data));
+        gl.uniform1fv(mouse_coords_loc2, new Float32Array(mouse_coords));
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, texturePositionBuffer);
+        gl.vertexAttribPointer(a_texCoords_loc, 2, gl.FLOAT, false, 0, 0);
+
+        gl.enableVertexAttribArray(a_coords_loc);
+        gl.enableVertexAttribArray(a_texCoords_loc);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+         
+        //I do not understand why the texture map only shows up correctly when
+        //using drawElements and not drawArrays with triangle strip
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, canvasIndexBuffer);
+        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+        gl.disableVertexAttribArray(a_coords_loc);
+        gl.disableVertexAttribArray(a_texCoords_loc);
+
+    }
+
+    // example code from mr doob : http://mrdoob.com/lab/javascript/requestanimationframe/
+    // requestAnim shim layer by Paul Irish
+    window.requestAnimFrame = (function(){
+      return  window.requestAnimationFrame       || 
+              window.webkitRequestAnimationFrame || 
+              window.mozRequestAnimationFrame    || 
+              window.oRequestAnimationFrame      || 
+              window.msRequestAnimationFrame     || 
+              function(/* function */ callback, /* DOMElement */ element){
+                window.setTimeout(callback, 1000/60 );
+              };
+    })();
+
+    // cancelAnimFrame is currently not useful for anything
+    window.cancelAnimFrame = (function(){
+      return  window.cancelAnimationFrame        ||
+              window.webkitCancelAnimationFrame  ||
+              window.mozCancelAnimationFrame     ||
+              window.oCancelAnimationFrame       ||
+              window.msCancelAnimationFrame
+              
+    })();
+
+    var animation_request;
+    var running = false;
+    var scene_number_delta = 1;
+    var starting_frame = 0;
+    var fps,fpsInterval,startTime,now,then,elapsed;
+
+    function run_recording() { 
+
+        //var big_string = JSON.stringify(zoom_save);
+        //console.log(big_string);
+        //JSON.parse should be able to turn it back
+
+        scene_number = document.getElementById("start_frame").valueAsNumber;
+        starting_frame = scene_number;
+
+        running = true;
+        julia_mouse = 0; //need to set mouse capture for julia params to off or it does not run
+        var cb = document.getElementById("julia_param_checkbox");
+        cb.checked=false;
+
+        fps = document.getElementById("fps").valueAsNumber;        
+        fpsInterval=1000/fps;
+        then=Date.now();
+        startTime=then;
+        run();
+    }
+
+    // recursive function here
+    var run = function() {
+
+        if (!running) return;
+
+        animation_request = requestAnimFrame(run);
+        now = Date.now();
+        elapsed = now - then;
+
+        if (elapsed > fpsInterval) {
+            then = now - (elapsed % fpsInterval);
+            document.getElementById("scene_number").value = scene_number;
+            drawScene();
+            scene_number += scene_number_delta; 
+
+            if (scene_number > (scene_counter-1) || scene_number < starting_frame) {
+           
+                scene_number_delta = -scene_number_delta;
+                scene_number += scene_number_delta;
+            }
+        }
+    }
+
+    function stop_running() {
+        running = false;
+        document.getElementById("start_frame").value = document.getElementById("scene_number").value;
+        //cancelAnimFrame(animation_request);
+    }
+
+    function sleep(milliseconds) {
+        var start = new Date().getTime();
+        for (var i = 0; i < 1e7; i++) {
+            if ((new Date().getTime() - start) > milliseconds) break;
+        }
+    }
+    
+    function apply_zoom(zoom_multiplier) {
+        //we also need separate zoom multipliers for mandel vs julia
+        document.getElementById("zoom_multiplier").value = zoom_multiplier;
+        zoom[doing_julia] *= zoom_multiplier;
+        current_width[doing_julia]  /= zoom_multiplier;
+        current_height[doing_julia] /= zoom_multiplier; 
+        current_zoom[doing_julia] *= zoom_multiplier;
+        document.getElementById("zoomOutput").value = current_zoom[doing_julia];
+
+        drawScene();
+    }
+
+    var canvas_x_offset = 0;  //210;
+    var canvas_y_offset = 0;  //10;
+    var mousex, mousey, old_mousex, old_mousey;
+    var zoom_and_mix_instead_of_changing_zparam = 0;
+    var radius_offset = 0.0, angle_offset = 0.0;
+    var last_used_radius = 1.0, last_used_angle = 0.0;
+    var doneone_offset = 0;
+    var doing_julia = 0;
+    var same_mode = 1.0;
+
+    function handleMouseDown(event) {
+    
+        var button_code = event.button;
+
+        mousex = (event.clientX - canvas_x_offset) / gl.canvas.clientWidth  *  2 - 1;
+        mousey = (event.clientY - canvas_y_offset) / gl.canvas.clientHeight * -2 + 1;
+
+    }
+
+    function julia_param_from_mouse() {
+        julia_mouse = 1;
+    }
+    function julia_param_from_mousex() 
+    {
+        julia_mouse ^= 1;
+ 
+        var cb = document.getElementById("julia_param_checkbox");
+        if (julia_mouse==1)
+            cb.checked=true;
+        else
+            cb.checked=false;
+    }
+  
+    //see atanyx in the GL shader section for the same function repeated
+    //except the parameters are y,x instead of x,y - what a dumbass
+    function atan(x,y) {
+
+        if ( Math.abs(x) < 0.000001 ) {
+            if ( y > 0 )  { return pi_over_2; }  else { return three_pi_over_2; }
+        }
+
+        var atanyx = Math.atan(y/x);
+
+        //we need to add multiple of pi depending on the quadrant
+        if (x>0 && y>=0) {
+            return atanyx;
+        }
+        else if (x<0 && y>=0) {
+            return pi + atanyx;
+        }
+        else if (x<0 && y<=0) {
+            return pi + atanyx;
+        }
+        else {
+            return two_pi + atanyx;
+        }
+    }
+
+    function handleMouseMove(event)
+    {
+
+        mousex = (event.clientX - canvas_x_offset) / gl.canvas.clientWidth  *  2 - 1;
+        mousey = (event.clientY - canvas_y_offset) / gl.canvas.clientHeight * -2 + 1;  //canvas starts upper left, gl bottom left
+
+        document.getElementById("zoomCenterXInput").value = current_center_x[doing_julia] + current_width[doing_julia]  * mousex;
+        document.getElementById("zoomCenterYInput").value = current_center_y[doing_julia] + current_height[doing_julia] * mousey;
+ 
+        old_mousex = mousex;
+        old_mousey = mousey;
+    }
+
+    function mix_factor_multiplier() {
+        var wheel_param_delta  = document.getElementById("wheel_param_delta").valueAsNumber;
+        var expand_contract    = document.getElementById("Julia_Param_Mult").valueAsNumber;         
+        return expand_contract * 2.0 / current_zoom[doing_julia];
+    }
+
+    function handleMouseWheel(event) {
+
+        var wheel = event.wheelDelta;
+    wheel /= Math.abs(wheel);  //normalize it to 1 since mouse wheel and gestures give 2 different values
+
+        document.getElementById("zoom_multiplier").value = 1.0;
+        //increment or decrement signal can come from mouse wheel or cursor keys
+
+        update_params_and_redraw(wheel);
+    }
+
+    function make_delta_smaller() {
+        var wheel_param_delta = document.getElementById("wheel_param_delta").valueAsNumber;
+        wheel_param_delta /= 10.0;
+        document.getElementById("wheel_param_delta").value = wheel_param_delta;
+    }
+
+    function update_params_and_redraw(delta) {
+
+        var wheel_param_name = document.getElementById("current_wheel_param").value;
+        var wheel_param = document.getElementById(wheel_param_name).valueAsNumber;
+        document.getElementById("wheel_param_value").value = wheel_param;
+
+        var wheel_param_delta = document.getElementById("wheel_param_delta").valueAsNumber;
+        
+        var wheel_delta = delta * wheel_param_delta;
+
+        wheel_param += wheel_delta;
+
+        document.getElementById("mouse_wheel").value = wheel_delta;
+        document.getElementById(wheel_param_name).value = wheel_param;
+
+        drawScene();
+    }
+
+    function apply_zoom_from_keypress(temp_zoom_multiplier) {
+
+        var zoom_multiplier = document.getElementById("zoom_multiplier").value;
+     
+        //we want to maintain the zoommultiplier from the input form if it is already going in
+        //the correct direction
+        if (temp_zoom_multiplier > 1.0 ) {
+            if ( zoom_multiplier <= 1.0 ) zoom_multiplier = temp_zoom_multiplier;
+        }
+        else if (temp_zoom_multiplier < 1.0) {
+            if ( zoom_multiplier >= 1.0 ) zoom_multiplier = temp_zoom_multiplier;
+        }
+        else {
+            zoom_multiplier = temp_zoom_multiplier;   
+        }
+
+        apply_zoom(zoom_multiplier);
+          
+    }
+
+    function clear_movement_data() {
+        for (var i=0; i<8; i++) {
+            movement_data[i] = 0.;
+        }
+    }
+    function handleKeyPress(event) {
+
+        clear_movement_data(); 
+        var movement_index = -1;
+
+        var ce = document.activeElement;
+        if (ce.id != '' && ce.id == "download_file") return;
+
+        var delta = 0.0;
+        if (event.keyCode == 38 )  // arrow up
+        {
+            delta = 1.0;
+            update_params_and_redraw(delta);
+            return false;
+        }
+        else if (event.keyCode == 40 ) //arrow down
+        {
+            delta = -1.0
+            update_params_and_redraw(delta);
+            return false;
+        }
+        else if (event.keyCode == 90 ) //z
+        {
+            apply_zoom_from_keypress(1.1);
+        }
+        else if (event.keyCode == 88) //x
+        {
+            apply_zoom_from_keypress(1.0/1.1);
+        }
+        else if (event.keyCode == 77) //m
+        {
+            julia_param_from_mouse();
+        }
+
+        else if (event.keyCode == 72) //h
+        {
+            toggle_hidden_attribute();
+            //rescale canvas and gl drawing area to maximum
+        }
+
+        else if (event.keyCode == 65) //a
+        {
+            movement_index = 0;
+
+            next_rot3d( 1., [...xz]);
+            
+        }
+
+        else if (event.keyCode == 68) //d
+        {
+            movement_index = 2;
+           
+            next_rot3d( -1, [...xz]);
+
+        }
+
+        else if (event.keyCode == 83) //s
+        {
+            movement_index = 1;
+           
+            //just adding 2 vectors here
+            for (var i=0; i<3; i++) {
+                ray_origin[i] += zaxis_speed * camera_direction[i];               
+            }
+
+
+        }      
+
+        else if (event.keyCode == 87) //w
+        {
+
+            movement_index = 3;
+
+            //just adding 2 vectors here
+            for (var i=0; i<3; i++) {
+                ray_origin[i] += -zaxis_speed * camera_direction[i];               
+            }
+
+        }
+
+        else if (event.keyCode == 73)  //i 
+        {
+            movement_index = 4;
+ 
+            next_rot3d( 1., [...yz]);
+            
+        }
+ 
+        else if (event.keyCode == 75)  //k
+        {
+            movement_index = 5;
+
+            next_rot3d( -1., [...yz]);
+
+        }
+
+        else if (event.keyCode == 74) //j
+        {
+            movement_index = 6;
+          
+            next_rot3d( 1., [...xy]);
+  
+        }
+
+        else if (event.keyCode == 76) //l
+        {
+            movement_index = 7;   
+
+            next_rot3d( -1., [...xy]);
+         
+        } 
+
+        else if (event.keyCode == 71 ) //g
+        {
+            //movement_index = 8;   //reduce speed
+            zaxis_speed /= 1.3;
+        }
+        
+        else if (event.keyCode == 84 ) //t
+        {
+            //movement_index = 9;   //increase_speed
+            zaxis_speed *= 1.3;
+        }
+
+        if ( movement_index > -1 ) {           
+            drawScene(); 
+        }
+
+
+        //returning false from these events prevents the default processing
+        //such as translating up arrow to scroll a region
+
+    }
+
+    function set_wheel(x1) {
+        document.getElementById("current_wheel_param").value = params[x1];
+        document.getElementById("wheel_param_delta").value = param_default_deltas[x1];
+    }
+
+
+/* Creates a program for use in the WebGL context gl, and returns the
+ * identifier for that program.  If an error occurs while compiling or
+ * linking the program, an exception of type String is thrown.  The error
+ * string contains the compilation or linking error.  If no error occurs,
+ * the program identifier is the return value of the function.
+ *    The second and third parameters are the id attributes for <script>
+ * elementst that contain the source code for the vertex and fragment
+ * shaders.
+ */
+  function createProgram(gl, vertexShaderID, fragmentShaderID) {
+    function getTextContent( elementID ) {
+            // This nested function retrieves the text content of an
+            // element on the web page.  It is used here to get the shader
+            // source code from the script elements that contain it.
+        var element = document.getElementById(elementID);
+        var node = element.firstChild;
+        var str = "";
+        while (node) {
+            if (node.nodeType == 3) // this is a text node
+                str += node.textContent;
+            node = node.nextSibling;
+        }
+        return str;
+    }
+    try {
+        var vertexShaderSource = getTextContent( vertexShaderID );
+        var fragmentShaderSource = getTextContent( fragmentShaderID );
+    }
+    catch (e) {
+        throw "Error: Could not get shader source code from script elements.";
+    }
+    var vsh = gl.createShader( gl.VERTEX_SHADER );
+    gl.shaderSource(vsh,vertexShaderSource);
+    gl.compileShader(vsh);
+    if ( ! gl.getShaderParameter(vsh, gl.COMPILE_STATUS) ) {
+        throw "Error in vertex shader:  " + gl.getShaderInfoLog(vsh);
+     }
+    var fsh = gl.createShader( gl.FRAGMENT_SHADER );
+    gl.shaderSource(fsh, fragmentShaderSource);
+    gl.compileShader(fsh);
+    if ( ! gl.getShaderParameter(fsh, gl.COMPILE_STATUS) ) {
+       throw "Error in fragment shader:  " + gl.getShaderInfoLog(fsh);
+    }
+    var prog = gl.createProgram();
+    gl.attachShader(prog,vsh);
+    gl.attachShader(prog, fsh);
+    gl.linkProgram(prog);
+    if ( ! gl.getProgramParameter( prog, gl.LINK_STATUS) ) {
+       throw "Link error in program:  " + gl.getProgramInfoLog(prog);
+    }
+    return prog;
+  }
+
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("webgl",{antialias:true})  || canvas.getContext("experimental-webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+            var size = gl.getParameter(gl.SAMPLES);
+            console.log("antialiasing samples ",size);
+        } catch (e) {
+        }
+        if (!gl) {
+            alert("Could not initialise WebGL, sorry :-(");
+        }
+    }
+
+    var init_canvas_width_fract = 1.0;
+    var init_canvas_height_fract = .995;
+
+    var canvas_width_fract = init_canvas_width_fract;
+    var canvas_height_fract = init_canvas_height_fract;
+
+    function resizeCanvas() {    
+        // have to resize other stuff like the gl viewport and not sure what else
+   
+        var canvas_mult = document.getElementById("canvas_mult").valueAsNumber;    
+        canvas.width = window.innerWidth * canvas_width_fract * canvas_mult;            
+        canvas.height = window.innerHeight * canvas_height_fract * canvas_mult;
+        gl.viewportWidth = canvas.width;
+        gl.viewportHeight = canvas.height;
+
+        //divs can be dynamically resized by just doing this
+        var div1 = document.getElementById("user_params");
+        if (div1.style.display != "none") {
+            var div_height = Math.max(window.innerHeight - 280 - 20,10);
+            var st ="position:absolute; top:280px; left:10px; z-index:0; font-size:12px; overflow:scroll; background-color:lightblue; width:210px; height:" + div_height + "px";
+        div1.setAttribute('style', st);
+        }
+    }
+
+    function toggle_hidden_attribute() {
+        var x  = document.getElementById("user_params");
+        var x2 = document.getElementById("save_file");
+        var x3 = document.getElementById("d2"); 
+        var canvas = document.getElementById("canvas01_div");
+
+        if (x.style.display === "none") {
+            x.style.display  = "block";
+            x2.style.display = "block";
+            x3.style.display = "block";
+        } else {
+            x.style.display =  "none";
+            x2.style.display = "none";
+            x3.style.display = "none";
+        }         
+
+    }
+
+    var canvas = document.getElementById("canvas01");
+    var base_width = 512.0;
+
+    function webGLStart() {
+
+        console.log("we made it to webGLStart");
+
+        if (window.File && window.FileReader && window.FileList && window.Blob) {
+            // Great success! All the File APIs are supported.
+            // only add the event listener if the file api is supported
+            document.getElementById('files').addEventListener('change', handleFileSelect, false);
+        } else {
+            alert('The File APIs are not fully supported in this browser.');
+        }
+
+        zoom[doing_julia] = 1.0;
+ 
+        canvas.width  = window.innerWidth  * canvas_width_fract;            
+        canvas.height = window.innerHeight * canvas_height_fract;
+
+        var aspect_ratio = canvas.width / canvas.height;
+  
+        var corner_x = base_width*aspect_ratio;
+        baseCorners.push( [corner_x, base_width] );
+        baseCorners.push( [-corner_x, base_width] );
+        baseCorners.push( [corner_x, -base_width] );
+        baseCorners.push( [-corner_x, -base_width] );
+
+        initGL(canvas);
+      
+        //color_map_urls is an array of images converted to base 64
+        //https://www.askapache.com/online-tools/base64-image-converter/
+        //load_new_texture();
+
+        prog_canvas  = createProgram(gl,"vshader","fshader");
+
+        prog_texture = createProgram(gl,"shader-vs","shader-fs");
+        gl.useProgram(prog_texture);
+        init_Buffers();
+
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+    window.addEventListener('resize', resizeCanvas, false);
+      
+        //do not really need initialize_corners and the rest if we just
+        //stick to the Fragment Shader
+        initialize_corners();
+
+        canvas.onmousedown = handleMouseDown;
+        canvas.onmousemove = handleMouseMove;
+        canvas.onmousewheel = handleMouseWheel;
+        document.onkeydown = handleKeyPress; 
+
+        var snapshot_mode = document.getElementById("snapshot_checkbox");
+        snapshot_mode.checked = true;
+
+        var div1 = document.getElementById("user_params");
+        var div_height = Math.max(window.innerHeight - 280 - 20,10);
+        var st ="position:absolute; top:280px; left:10px; z-index:0; font-size:12px; overflow:scroll; background-color:lightblue; width:210px; height:" + div_height + "px";
+        div1.setAttribute('style', st);
+
+        var newform = document.createElement('form');
+        div1.appendChild(newform);
+
+        for (var p in params) {
+
+            var i = document.createElement('input');
+            i.type='number';
+            i.id=params[p];
+            i.value=initial_values[p];
+            i.setAttribute('style','font-size:10px; width:60px');
+            i.onblur = function(){drawScene();};
+            i.onchange = function(){drawScene();};
+
+            var b = document.createElement('input');
+            b.type='button';
+            b.setAttribute('style','position:relative; top: 4px; font-size:9px');
+
+            //how the f..k would anyone figure this out???
+            //http://stackoverflow.com/questions/3495679/passing-parameters-in-javascript-onclick-event
+            b.onclick= ( function() { var current_p = p; 
+                                      return function() { set_wheel(current_p + ''); }
+                                    } ) ();
+
+            newform.appendChild(i);
+            newform.appendChild(document.createTextNode('\u00A0\u00A0'));
+            newform.appendChild(b);
+            newform.appendChild(document.createTextNode('\u00A0'));
+            newform.appendChild(document.createTextNode(params[p]));
+            newform.appendChild(document.createElement('br'));
+        }
+    
+        update_rotation_basis();
+
+        drawScene();
+    }
+
+function loadTexture(gl, url) {
+
+  gl.activeTexture(gl.TEXTURE1);
+
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  // Because images have to be download over the internet
+  // they might take a moment until they are ready.
+  // Until then put a single pixel in the texture so we can
+  // use it immediately. When the image has finished downloading
+  // we'll update the texture with the contents of the image.
+  const level = 0;
+  const internalFormat = gl.RGBA;
+  const width = 1;
+  const height = 1;
+  const border = 0;
+  const srcFormat = gl.RGBA;
+  const srcType = gl.UNSIGNED_BYTE;
+  const pixel = new Uint8Array([0, 0, 255, 255]);  // opaque blue
+  gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+                width, height, border, srcFormat, srcType,
+                pixel);
+
+  const image = new Image();
+  image.onload = function() {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+                  srcFormat, srcType, image);
+
+    // WebGL1 has different requirements for power of 2 images
+    // vs non power of 2 images so check if the image is a
+    // power of 2 in both dimensions.
+    if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+       // Yes, it's a power of 2. Generate mips.
+       gl.generateMipmap(gl.TEXTURE_2D);
+       //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    } else {
+       // No, it's not a power of 2. Turn off mips and set
+       // wrapping to clamp to edge
+       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    }
+  };
+  image.src = url;
+
+  gl.activeTexture(gl.TEXTURE0);
+
+  return texture;
+}
+
+function isPowerOf2(value) {
+  return (value & (value - 1)) == 0;
+}
+
+function load_new_texture() {
+  var text_num_to_load =  document.getElementById("tex_map_num").valueAsNumber;
+  loadTexture(gl, color_map_urls[text_num_to_load]);
+}
+
+</script>
+
+</html>
