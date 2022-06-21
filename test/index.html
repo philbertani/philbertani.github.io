@@ -519,13 +519,13 @@
                   "dR"/*22*/,"dG"/*23*/,"dB"/*24*/
                   ];                  
 
-    var initial_values       = [ 0.0,   0.0,  0.0,  0.0,  0.0 , 0.0,  0.0, 0. 
-                                 ,0, 0, 0, 0.0, 0.0, 0.0, ref_sz, unit_cell_scale 
+    var initial_values       = [ 0., 0., 0., 0., 0., 0., 0., 0. 
+                                ,0, 0, 0, 0.0, 0.0, 0.0, ref_sz, unit_cell_scale 
                                  ,4., 0., 0.
                                  ,0.5, 0.5, 0.5
                                  ,0. ,0., 0., 0. ];
 
-    var param_default_deltas = [ 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 1. 
+    var param_default_deltas = [ .02, .02, .02, .02, .02, .02, .02, 1. 
                                  ,1, 1, 1, .02, .02, .02, .0002, .01
                                  ,1., .002, .1 
                                  ,.1, .1, .1
@@ -2481,7 +2481,11 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
 
     var canvas_width_fract = init_canvas_width_fract;
     var canvas_height_fract = init_canvas_height_fract;
-    var params_style = "position:absolute; top:280px; left:10px; z-index:0; font-size:12px; overflow:scroll; background-color:lightblue; width:212px; height:";
+    var params_style = "position:absolute; top:300px; left:10px; z-index:0; font-size:12px; overflow:scroll; background-color:lightblue; width:212px; height:";
+ 
+    function user_params_div_height() {
+        return Math.max(window.innerHeight - 280 - 20, 10);
+    }
 
     function resizeCanvas() {    
         // have to resize other stuff like the gl viewport and not sure what else
@@ -2495,7 +2499,7 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
         //divs can be dynamically resized by just doing this
         var div1 = document.getElementById("user_params");
         if (div1.style.display != "none") {
-            var div_height = Math.max(window.innerHeight - 280 - 20,10);
+            var div_height = user_params_div_height();
             var st = params_style + div_height + "px";
             div1.setAttribute('style', st);
         }
@@ -2584,7 +2588,7 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
         //adding text boxes dynamically for each parameter in params array
 
         var div1 = document.getElementById("user_params");
-        var div_height = Math.max(window.innerHeight - 280 - 20,10);
+        var div_height = user_params_div_height();
         var st = params_style + div_height + "px";
         div1.setAttribute('style', st);
 
@@ -4725,8 +4729,58 @@ function grid_gl_buffer_stuff() {
     document.getElementById("num_vertices").value = vertex_order.length-1;
 }
 
+function prepare_image_texture() {
+
+  gl.activeTexture(gl.TEXTURE1);
+
+  texture_from_user = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture_from_user);
+
+  //textures are stored on disk starting at 0,0 in the upper left
+  //webgl 0,0 is bottom left so flip y here so we can forget about it later - ok?
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+  // Because images have to be downloaded over the internet
+  // they might take a moment until they are ready.
+  // Until then put a single pixel in the texture so we can
+  // use it immediately. When the image has finished downloading
+  // we'll update the texture with the contents of the image
+  const level = 0;
+  const internalFormat = gl.RGBA;
+  const width = 1;
+  const height = 1;
+  const border = 0;
+  const srcFormat = gl.RGBA;
+  const srcType = gl.UNSIGNED_BYTE;
+  const pixel = new Uint8Array([0, 0, 255, 255]);  // opaque blue
+
+  //just a temporary texture buffer here
+  gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+                width, height, border, srcFormat, srcType,
+                pixel);
+
+}
+
 function loadFileAsTexture(evt) {
-    loadTexture(gl, evt.target.files[0]);
+    
+    var files = evt.target.files;
+
+    var reader = new FileReader();
+ 
+    reader.onload = function(e) {
+        var image = e.target.result;
+        //image at this point is a base64 text string
+        color_map_urls.push(image);
+        var text_num_to_load =  color_map_urls.length-1;
+        document.getElementById("tex_map_num").value = text_num_to_load;
+        document.getElementById("Fill Mode").value = 1;
+        document.getElementById("Texture Mult").value = 1;
+        loadTexture(gl, color_map_urls[text_num_to_load]);
+    }
+
+    //reading an image as DataURL reads it is as bas64 just like the other stuff in texture_map_images.js
+    //so just push it onto the array
+    reader.readAsDataURL(files[0]);
 }
 
 function loadTexture(gl, url) {
@@ -4766,7 +4820,6 @@ function loadTexture(gl, url) {
   image.src = url;
   image.addEventListener('load', function(){ imageloaded(image)  }  );
 }
-
 
 function imageloaded(image) {
 
