@@ -3,13 +3,34 @@
 <html>
 
 <head>
-<title>Tilings</title>
-<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<title>Tilophile by Phil Bertani</title>
+
+<style>
+.navbar { overflow:hidden; background-color: #000000; width: 215px;}
+.navbar a { float: left; font-size: 15px;color: white; text-align: center; padding: 8px;text-decoration:none }
+.navbar a:hover  {background-color: #FF00FF; color: #000000; }
+}
+</style>
 </head>
+
 
 <body onload="webGLStart()"  style="overflow:hidden">
 
-    <!-- set oncontextmenu="return false" to nullify right click menu -->
+<!-- set oncontextmenu="return false" to nullify right click menu -->
+
+
+<div class="navbar">
+
+  <a href="./tilophile_instructions.html"
+     target="popup"
+     onclick="window.open('./tilophile_instructions.html','popup','width=600,height=600);return false;"
+      >Instructions</a>
+
+  <a href="#toggle"
+     onclick="toggle_hidden_attribute()" >Toggle Controls</a>
+  
+</div>
+
 
     <div id="canvas01_div" style="position:absolute; top:0px; left:0px; font-size:10px; z-index:-1">
         <canvas id="canvas01" style="border: none;" oncontextmenu="return true"></canvas>
@@ -19,7 +40,7 @@
     <div id="user_params">
     </div>
   
-    <div id="save_file" style="position:absolute; top:10px; left:10px; z-index:0; font-size:12px; background-color:lightblue; width:212px" >
+    <div id="save_file" style="position:absolute; top:45px; left:10px; z-index:0; font-size:12px; background-color:lightblue; width:212px" >
 
         <button style="font-size:12px; width:80px" onclick="downloadFile()" >Save File</button>
         <input type="text" id="download_file" value="restart01.txt" placeholder="filename.txt" style="font-size:12px; width:80px"/>
@@ -42,7 +63,7 @@
         <input type="file" id="img_file" style="display:none"/>
     </div>
 
-    <div id="d2" style="position:absolute; top:80px; left:10px; z-index:0; font-size:12px; overflow:scroll; height:220px; background-color:lightblue">
+    <div id="d2" style="position:absolute; top:110px; left:10px; z-index:0; font-size:12px; overflow:scroll; height:220px; background-color:lightblue">
         <form autocomplete="off">
         
             <select id="chosen_tiling" style="font-size:12px; width:88px" onChange="change_tiling(this.value)">
@@ -97,26 +118,12 @@
             <input type="number" id="tex_size_mult" value="0" style="font-size:10px; width:80px" onchange="adjust_texture_size()" /> Tex Size Mult <br> 
             <input type="number" id="tex_map_num" value="0" style="font-size:10px; width:80px" onchange="load_new_texture()"/> Texture Map #<br>             
 
-            <input type="button" onclick="run_recording()" style="font-size:10px"> Run
-            <input type="button" onclick="stop_running()" style="font-size:10px"> Stop
-            <br>
- 
-            <input type="number" id="last_frame" value="0" style="font-size:10px; width:80px"> Last Frame <br>
-            <input type="number" id="scene_number" value="0" style="font-size:10px; width:80px"> Current Frame #<br>
-            <input type="number" id="start_frame" value="0" style="font-size:10px; width:80px"> Starting Frame #<br>
-            <input type="number" id="fps" value="10" style="font-size:10px; width:80px"> FPS <br>
-            
-            <input type="checkbox" id="snapshot_checkbox" onclick="toggle_snapshot()" style="font-size:10px" /> Snapshot Mode <br>
             <input type="checkbox" id="freehand"          onclick="toggle_freehand()" style="font-size:10px" /> Freehand Drawing <br>
             <input type="checkbox" id="move_ref_vtx"      onclick="toggle_move_ref_vtx()" style="font-size:10px" />Move Ref Vtx <br>
 
             <input type="button" onclick="make_delta_smaller()" style="font-size:10px" /> Reduce Change in Wheel Param <br>
 
             <input type="number" id="aspect_ratio" value="0" style="font-size:10px; width:80px"> Aspect Ratio <br>
-     
-        
-            <br>
-            <br>
 
         </form>
 
@@ -284,7 +291,7 @@
        
    }
     
-    //END OF GPU PROGRAM
+   //END OF GPU PROGRAM
 
 </script>
 
@@ -455,8 +462,6 @@
 <script src="texture_map_images.js"></script>
 
 <script type="text/javascript">
-
-    // JAVASCRIPT HERE!!!
     
     // window.location.href is the url of this page
     //var color_map_urls = [];
@@ -623,7 +628,7 @@
     var texture_from_user;       //for loading stored textures
 
     var texture_copy1;  //a copy of the previous main image accessible by the main image rendering context
-    //var depthbuffer;  //not used
+    //var depthbuffer;  //not used - yet
 
     var framebuffer2;
     var texture_final;
@@ -638,13 +643,8 @@
     var snapshot_mode = 1;
     var move_ref_vtx = 0;
 
-    var recenter_julia_params = 0;
-    var julia_mouse = 0;
-
     var aspect_ratio = 1.0;
 
-    //vars for saving parameters for every different frame
-    var zoom_save = [];
     var scene_counter = 0;
     var scene_number  = 0;
 
@@ -694,10 +694,6 @@
 
     }
 
-    function toggle_snapshot() {
-        snapshot_mode ^= 1;
-    }
-
     function toggle_freehand() {
         freehand_mode ^= 1;
     }
@@ -720,20 +716,10 @@
         reader.onload = function(e) {
             
             var JSON_object = JSON.parse(e.target.result);
- 
-            //JSON.parse produces an associative map of objects
-            //we need an array of objects
-            //override the original zoom_save
-            //this .map is a short way of writing a loop over the keys
-            //zoom_save = Object.keys(JSON_object).map(function(k) { return JSON_object[k] });
-   
+    
             convert_obj_to_arrays( JSON_object );
    
-            document.getElementById("start_frame").valueAsNumber = 0;
-            document.getElementById("scene_number").valueAsNumber = 0;
-            document.getElementById("last_frame").valueAsNumber = zoom_save.length;
-            scene_counter = 1; //zoom_save.length;
-
+            scene_counter = 1;
 
                 //evt.reset_tiling is only defined after we call it again after resetting the window url
             if (scene_counter == 1) {
@@ -744,11 +730,9 @@
                 drawScene();
             }
            
-           
-              //mother f.cker we can't get the full file path, no modern browser supplies it
-              //change_tiling( tiling_names[chosen_tiling],"?file="+files[0].name );          
+            //mother f.cker we can't get the full file path, no modern browser supplies it
+            //change_tiling( tiling_names[chosen_tiling],"?file="+files[0].name );          
           
-
         }
 
         reader.readAsText(files[0]);  
@@ -1115,37 +1099,8 @@
         mouse_coords.push(julia_x);
         mouse_coords.push(julia_y);
         mouse_coords.push(current_zoom_level);
-
-        // total zoom gets messed up if we stop before the end and then zoom again manually
-        if ( running || queue_up_snapshot)  {
-            // if we are running a recording then get parameters from the saved data array         
-            details_at_time_n = zoom_save[scene_number];
-
-            param_data                    = details_at_time_n['param_details'];
-            for (var i in param_data) {
-                document.getElementById(params[i]).value = param_data[i];
-            }  
-
-            doing_julia                   = 0;
-
-            mouse_coords                  = details_at_time_n['mouse_coords']; 
-            if ( mouse_coords === undefined ) {
-                mouse_coords = [0,0,0,0,0,0,0,0,0,0,0,0];
-            }
-
-            var tmp_zoom                  = details_at_time_n['total_zoom'];
-            if ( tmp_zoom === undefined ) {
-               // nothing here is defined anymore...
-               // current_zoom_level = initial_height / current_height;
-            }
-            else {
-               current_zoom_level = tmp_zoom;
-            }
- 
-            queue_up_snapshot = 0;       
-        }
         
-        else {
+        {
 
             // not running a recording, get parameters from the user input form
             for (var i in params) {
@@ -1154,7 +1109,6 @@
             var zoom_details = {};
             snapshot.push(zoom_details);
 
-            document.getElementById("last_frame").value = scene_counter;
             scene_counter ++;
         }
 
@@ -2081,90 +2035,6 @@
 
     }
 
-
-
-    // example code from mr doob : http://mrdoob.com/lab/javascript/requestanimationframe/
-    // requestAnim shim layer by Paul Irish
-    window.requestAnimFrame = (function(){
-      return  window.requestAnimationFrame       || 
-              window.webkitRequestAnimationFrame || 
-              window.mozRequestAnimationFrame    || 
-              window.oRequestAnimationFrame      || 
-              window.msRequestAnimationFrame     || 
-              function(/* function */ callback, /* DOMElement */ element){
-                window.setTimeout(callback, 1000/60 );
-              };
-    })();
-
-    // cancelAnimFrame is currently not useful for anything
-    window.cancelAnimFrame = (function(){
-      return  window.cancelAnimationFrame        ||
-              window.webkitCancelAnimationFrame  ||
-              window.mozCancelAnimationFrame     ||
-              window.oCancelAnimationFrame       ||
-              window.msCancelAnimationFrame
-              
-    })();
-
-    var animation_request;
-    var running = false;
-    var scene_number_delta = 1;
-    var starting_frame = 0;
-    var fps,fpsInterval,startTime,now,then,elapsed;
-
-    function run_recording() { 
-
-        scene_number = document.getElementById("start_frame").valueAsNumber;
-        starting_frame = scene_number;
-
-        running = true;
-        julia_mouse = 0; //need to set mouse capture for julia params to off or it does not run
-        var cb = document.getElementById("julia_param_checkbox");
-        cb.checked=false;
-
-        fps = document.getElementById("fps").valueAsNumber;        
-        fpsInterval=1000/fps;
-        then=Date.now();
-        startTime=then;
-        run();
-    }
-
-    // recursive function here
-    var run = function() {
-
-        if (!running) return;
-
-        animation_request = requestAnimFrame(run);
-        now = Date.now();
-        elapsed = now - then;
-
-        if (elapsed > fpsInterval) {
-            then = now - (elapsed % fpsInterval);
-            document.getElementById("scene_number").value = scene_number;
-            drawScene();
-            scene_number += scene_number_delta; 
-
-            if (scene_number > (scene_counter-1) || scene_number < starting_frame) {
-           
-                scene_number_delta = -scene_number_delta;
-                scene_number += scene_number_delta;
-            }
-        }
-    }
-
-    function stop_running() {
-        running = false;
-        document.getElementById("start_frame").value = document.getElementById("scene_number").value;
-        //cancelAnimFrame(animation_request);
-    }
-
-    function sleep(milliseconds) {
-        var start = new Date().getTime();
-        for (var i = 0; i < 1e7; i++) {
-            if ((new Date().getTime() - start) > milliseconds) break;
-        }
-    }
-    
     function apply_zoom(zoom_multiplier) {
         //we also need separate zoom multipliers for mandel vs julia
         document.getElementById("zoom_multiplier").value = zoom_multiplier;
@@ -2288,18 +2158,6 @@
 
         document.getElementById("zoom_multiplier").value = 1.0;
         //increment or decrement signal can come from mouse wheel or cursor keys
-
-        if (julia_mouse==1) {
-
-            if (document.getElementById("Mandel_Julia").valueAsNumber > 0 && zoom_and_mix_instead_of_changing_zparam == 0) {
-                //we need to set Param Radius and Param Angle so that the julia coords are recorded
-                var zparam_mult = document.getElementById("Julia_Param_Mult").valueAsNumber;
-                document.getElementById("Param_Radius").valueAsNumber = zparam_mult*(Math.sqrt(mousex*mousex + mousey*mousey) + recenter_julia_params*radius_offset);
-                document.getElementById("Param_Angle").valueAsNumber  =             (atan(mousex, mousey)                     + recenter_julia_params*angle_offset );
-                julia_x = mousex;
-                julia_y = mousey;
-            }
-        }
 
         update_params_and_redraw(wheel);
     }
@@ -2481,10 +2339,10 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
 
     var canvas_width_fract = init_canvas_width_fract;
     var canvas_height_fract = init_canvas_height_fract;
-    var params_style = "position:absolute; top:300px; left:10px; z-index:0; font-size:12px; overflow:scroll; background-color:lightblue; width:212px; height:";
+    var params_style = "position:absolute; top:335px; left:10px; z-index:0; font-size:12px; overflow:scroll; background-color:lightblue; width:212px; height:";
  
     function user_params_div_height() {
-        return Math.max(window.innerHeight - 280 - 20, 10);
+        return Math.max(window.innerHeight - 280 - 20 - 50, 10);
     }
 
     function resizeCanvas() {    
@@ -2581,9 +2439,6 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
         canvas.onmousemove  = handleMouseMove;
         canvas.onmousewheel = handleMouseWheel;
         document.onkeydown  = handleKeyPress; 
-
-        var snapshot_mode = document.getElementById("snapshot_checkbox");
-        snapshot_mode.checked = true;
 
         //adding text boxes dynamically for each parameter in params array
 
