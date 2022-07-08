@@ -5,13 +5,29 @@
 <head>
 <title>D4 IFS</title>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<style>
+.navbar { overflow:hidden; background-color: #000000; width: 212px;}
+.navbar a { float: left; font-size: 15px;color: white; text-align: center; padding: 8px;text-decoration:none }
+.navbar a:hover  {background-color: #FF00FF; color: #000000; }
+}
+</style>
+
 </head>
 
-<!--
-<body onload="webGLStart();" style="overflow:hidden">
---> 
-
 <body onload="webGLStart()">
+
+<div class="navbar">
+
+  <a href="./d4_instructions.html"
+     target="popup"
+     onclick="window.open('./d4_instructions.html','popup','width=600,height=600);return false;"
+      >Instructions</a>
+
+  <a href="#toggle"
+     onclick="toggle_hidden_attribute()" >Toggle Controls</a>
+  
+</div>
 
     <!-- set oncontextmenu="return false" to nullify right click menu -->
 
@@ -19,11 +35,7 @@
         <canvas id="canvas01" style="border: none;" oncontextmenu="return true"></canvas>
     </div>
 
-    <!-- see webGLStart() for creation of user_params -->
-    <div id="user_params">
-    </div>
-  
-    <div id="save_file" style="position:absolute; top:10px; left:10px; z-index:0; font-size:12px; background-color:lightblue; width:208px" >
+    <div id="save_file" style="position:absolute; top:45px; left:10px; z-index:0; font-size:12px; background-color:lightblue; width:210px" >
 
         <button style="font-size:12px; width:80px" onclick="downloadFile()" >Create File</button>
         <input type="text" id="download_file" value="fract01.txt" placeholder="filename.txt" style="font-size:12px; width:80px">
@@ -37,12 +49,17 @@
         <output id="file_list"></output>
     </div>
 
-    <div id="d2" style="position:absolute; top:50px; left:10px; z-index:0; font-size:12px; overflow:scroll;
-     height:220px; width:208px; background-color:lightblue">
+    <div id="d2" style="position:absolute; top:85px; left:10px; z-index:0; font-size:12px; overflow:scroll;
+     height:220px; width:210px; background-color:lightblue">
 
-    <form autocomplete="off">
+       <form autocomplete="off">
 
             <!--adding a title="" attribute will show the title on hover but there is an annoying delay -->
+
+            
+            <input type="button" onclick="make_delta_smaller()" style="font-size:10px" /> Reduce Change in Wheel Param
+            <br>
+
             <input type="number" id="zoom_multiplier" value="1.0" style="font-size:10px; width:80px"/> Zoom Factor
             <br>
 
@@ -84,17 +101,15 @@
             <input type="number" id="start_frame" value="0" style="font-size:10px; width:80px"> Starting Frame #<br>
             <input type="number" id="fps" value="10" style="font-size:10px; width:80px"> FPS <br>
 
-            
-            <input type="button" onclick="make_delta_smaller()" style="font-size:10px" /> Reduce Change in Wheel Param
-            <br>
-            <input type="checkbox" id="julia_param_checkbox" onclick="julia_param_from_mouse()" style="font-size:10px" /> Change Params using Mouse
-            <br>
-            <input type="checkbox" onclick="toggle_recenter_julia_params()" style="font-size:10px" /> Toggle Recenter Julia Params
-            <br>
+
+
             <input type="checkbox" id="snapshot_checkbox" onclick="toggle_snapshot()" style="font-size:10px" /> Snapshot Mode
 
         </form>
+    </div>
 
+    <!-- see webGLStart() for creation of user_params -->
+    <div id="user_params">
     </div>
 
 </body>
@@ -178,29 +193,6 @@ float   height_expand_sky_angle, adjust_sky_angle;
 
 const float gmh=(sqrt(5.)+1.)/2.;
 const float gmi=1./gmh;
-
-//dodecahedron vertices
-vec3 dd01 = vec3(1.,1.,1.);
-vec3 dd02 = vec3(1.,1.,-1.);
-vec3 dd03 = vec3(1.,-1,1.);
-vec3 dd04 = vec3(1.,-1,-1.);
-vec3 dd05 = vec3(-1,1.,1.);
-vec3 dd06 = vec3(-1.,1.,-1);
-vec3 dd07 = vec3(-1.,-1.,1.);
-vec3 dd08 = vec3(-1.,-1.,-1.);
-vec3 dd09 = vec3(0.,gmh,gmi);
-vec3 dd10 = vec3(0.,gmh,-gmi);
-vec3 dd11 = vec3(0.,-gmh,gmi);
-vec3 dd12 = vec3(0.,-gmh,-gmi);
-vec3 dd13 = vec3(gmi,0.,gmh);
-vec3 dd14 = vec3(gmi,0.,-gmh);
-vec3 dd15 = vec3(-gmi,0.,gmh);
-vec3 dd16 = vec3(-gmi,0.,-gmh);
-vec3 dd17 = vec3(gmh,gmi,0.);
-vec3 dd18 = vec3(gmh,-gmi,0.);
-vec3 dd19 = vec3(-gmh,gmi,0.);
-vec3 dd20 = vec3(-gmh,-gmi,0.);
-
 
 float just_a_sphere( vec3 p, float r ) {
      return length(p) - r;
@@ -304,106 +296,6 @@ vec2 de_sierp(vec3 z) {
 
         if ( i == floor_iter) floor_z = z;
 
-    }
-
-
-    if ( n < floor_iter ) floor_z = z;
-
-    ifs_color /= float(n);
-
-    float dz = pow(ifs_scale, float(n) );
-    //dz is simply the constant Scale factor to the power of number of times used
-
-    float scene_dist = length(z) / dz;  
-    float objid = 0.;
-
-    float floor_dist = earth_dist(orig_z);
-
-    global_earth_dist = max(global_earth_dist, scene_dist - floor_dist);
-
-    if ( floor_dist < scene_dist ) {
-        scene_dist = floor_dist;
-
-        global_floor_variation = (1.+params[20]) * length(cross(floor_z,floor_vec))/100.;
-        scene_dist -= clamp(  global_floor_variation,-.2,.2);
-
-        objid = 100. ;
-    }
-
-    return vec2( scene_dist, objid );
-}
-
-
-
-
-
-//if point stays put after doing the inverse of the usual sierpinski operations then
-//it must be in the sierpinski gasket attractor
-vec2 de_sierp_d12(vec3 z) {
-    
-    vec3 min_vtx;
-    vec3 orig_z = z;
-    int n=0;
-    float min_dist,dist_to_vtx;
-
-    vec3 floor_z;
-    int floor_iter = 5+int(params[21]);
-
-    if ( params[41] != 0. ) {
-       z.xz = sin( z.xz / params[41] );         //repeat using sin instead of mod, more interesting
-       //z.y += global_totdist/(10.+params[40]) + 3.*sin(global_totdist/3.);  //reduce height as we get farther away
-    }
-
-    if ( params[42] != 0. ) {
-        z.xz = mod( z.xz - 5., 10. ) - 5.;
-        //z.y += 3.*sin(global_totdist/10.) + global_totdist/(10.+params[40]);
-    }
-
-    //we can make a ring around the equator by adjusting height!
-    z.y += params[35]; // + sin(iTime/2.);
-    
-    ifs_color = vec3(0.);
-
-    float d,dist,fubar_color, max_fubar;
-    vec3 c;
-    for (int i=0; i<120; i++) {
-    
-        if ( float(i) > params[10] ) break;
- 
-   	//to make this dynamic have to pass in a uniform array of floats
-	//then take 3 at a time as vec3()
-        c=dd01; dist=length(z-dd01); fubar_color=1.;
-        d=length(z-dd02); if (d<dist) {c=dd02; dist=d; fubar_color=2.;}
-        d=length(z-dd03); if (d<dist) {c=dd03; dist=d; fubar_color=3.;}
-        d=length(z-dd04); if (d<dist) {c=dd04; dist=d; fubar_color=4.;}
-        d=length(z-dd05); if (d<dist) {c=dd05; dist=d; fubar_color=5.;}
-        d=length(z-dd06); if (d<dist) {c=dd06; dist=d; fubar_color=6.;}
-        d=length(z-dd07); if (d<dist) {c=dd07; dist=d; fubar_color=7.;}
-        d=length(z-dd08); if (d<dist) {c=dd08; dist=d; fubar_color=8.;}        
-        d=length(z-dd09); if (d<dist) {c=dd09; dist=d; fubar_color=9.;}
-
-        d=length(z-dd10); if (d<dist) {c=dd10; dist=d; fubar_color=10.;}
-        d=length(z-dd11); if (d<dist) {c=dd11; dist=d; fubar_color=11.;}
-        d=length(z-dd12); if (d<dist) {c=dd12; dist=d; fubar_color=12.;} 
-        d=length(z-dd13); if (d<dist) {c=dd13; dist=d; fubar_color=13.;}
-
-        d=length(z-dd14); if (d<dist) {c=dd14; dist=d; fubar_color=14.;}
-        d=length(z-dd15); if (d<dist) {c=dd15; dist=d; fubar_color=15.;}
-        d=length(z-dd16); if (d<dist) {c=dd16; dist=d; fubar_color=16.;}
-        d=length(z-dd17); if (d<dist) {c=dd17; dist=d; fubar_color=17.;}
-        d=length(z-dd18); if (d<dist) {c=dd18; dist=d; fubar_color=18.;}
-        d=length(z-dd19); if (d<dist) {c=dd19; dist=d; fubar_color=19.;}
-        d=length(z-dd20); if (d<dist) {c=dd20; dist=d; fubar_color=20.;}
-	
-        if ( z.x * z.y > 0. ) ifs_color.x ++;
-        if ( z.y * z.z > 0. ) ifs_color.y ++;
-        if ( z.z * z.x > 0. ) ifs_color.z ++;
-
-        if ( i == floor_iter) floor_z = z; 
-
-        if (fubar_color > max_fubar ) max_fubar = fubar_color;
-        z = ifs_scale*z - c*(ifs_scale-1.0);
-        n++;
     }
 
 
@@ -836,7 +728,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec2 uv = (2.0*fragCoord-iResolution.xy)/iResolution.y;
 
     //ro = vec3( movement[0] + sin(iTime) , movement[1]  , 2.*cos(iTime) + movement[2] );
-    ro = vec3( movement[0] , -.5+ movement[1]  , 4. + movement[2] );
+    ro = vec3( movement[0] , -.5+ movement[1]  , movement[2] );
         
     float  focal_point = params[14];
 
@@ -851,7 +743,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 dir = normalize( vec3( movement[3], movement[4], movement[5] ) );
 
     //angle_time = mod(iTime, 2.*PI);
-    angle_time = mod(params[36], 2.*PI);
+    angle_time = mod(1.8 + params[36], 2.*PI);
 
     //angle_time -= ro.z/50.;  //sun gets higher as we move "east" which is 0,0,-1 direction
 
@@ -1040,7 +932,7 @@ void main() {
     var params = ["Detail"/*0*/,"MScale"/*1*/,"AO Iter"/*2*/,"Time"/*3*/,
                   "Light X"/*4*/,"Scale Fac"/*5*/,"Ref Light Pow"/*6*/,
                   "Color Quotient1"/*7*/,"Normal Light"/*8*/,"Ref Light"/*9*/,
-                  "MBox Iter"/*10*/,"MBox p1"/*11*/,
+                  "Max Iter"/*10*/,"unused"/*11*/,
                   "Normal expand"/*12*/,"Tunnel Radius"/*13*/,"Focal Point"/*14*/,
                   "Box Clamp Offset"/*15*/,"Light Distance"/*16*/,"Red Freq"/*17*/,"Green Freq"/*18*/,
                   "Blue Freq"/*19*/,"Floor fuck"/*20*/,"Floor Iter"/*21*/,
@@ -2167,6 +2059,12 @@ void main() {
     var canvas_width_fract = init_canvas_width_fract;
     var canvas_height_fract = init_canvas_height_fract;
 
+    var params_style = "position:absolute; top:310px; left:10px; z-index:0; font-size:12px; overflow:scroll; background-color:lightblue; width:210px; height:";
+ 
+    function user_params_div_height() {
+        return Math.max(window.innerHeight - 280 - 20 - 30, 10);
+    }
+
     function resizeCanvas() {    
         // have to resize other stuff like the gl viewport and not sure what else
    
@@ -2179,9 +2077,9 @@ void main() {
         //divs can be dynamically resized by just doing this
         var div1 = document.getElementById("user_params");
         if (div1.style.display != "none") {
-            var div_height = Math.max(window.innerHeight - 280 - 20,10);
-            var st ="position:absolute; top:280px; left:10px; z-index:0; font-size:12px; overflow:scroll; background-color:lightblue; width:210px; height:" + div_height + "px";
-        div1.setAttribute('style', st);
+            var div_height = user_params_div_height();
+            var st =params_style + div_height + "px";
+            div1.setAttribute('style', st);
         }
     }
 
@@ -2245,7 +2143,7 @@ void main() {
 
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
-    window.addEventListener('resize', resizeCanvas, false);
+        window.addEventListener('resize', resizeCanvas, false);
       
         //do not really need initialize_corners and the rest if we just
         //stick to the Fragment Shader
@@ -2260,9 +2158,11 @@ void main() {
         snapshot_mode.checked = true;
 
         var div1 = document.getElementById("user_params");
-        var div_height = Math.max(window.innerHeight - 280 - 20,10);
-        var st ="position:absolute; top:280px; left:10px; z-index:0; font-size:12px; overflow:scroll; background-color:lightblue; width:210px; height:" + div_height + "px";
+
+        var div_height = user_params_div_height();
+        var st = params_style + div_height + "px";
         div1.setAttribute('style', st);
+
 
         var newform = document.createElement('form');
         div1.appendChild(newform);
@@ -2298,6 +2198,8 @@ void main() {
         update_rotation_basis();
 
         drawScene();
+  
+        alert("Move around using WSAD, IKJL - See Instructions");
     }
 
 function loadTexture(gl, url) {
