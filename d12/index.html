@@ -750,7 +750,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec2 uv = (2.0*fragCoord-iResolution.xy)/iResolution.y;
 
     //ro = vec3( movement[0] + sin(iTime) , movement[1]  , 2.*cos(iTime) + movement[2] );
-    ro = vec3( movement[0] , -.5+ movement[1]  , 4. + movement[2] );
+    ro = vec3( movement[0] , 2.1 + movement[1]  , .7 + movement[2] );
         
     float  focal_point = params[14];
 
@@ -765,7 +765,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 dir = normalize( vec3( movement[3], movement[4], movement[5] ) );
 
     //angle_time = mod(iTime, 2.*PI);
-    angle_time = mod(params[36], 2.*PI);
+    angle_time = .7 + mod(params[36], 2.*PI);
 
     //angle_time -= ro.z/50.;  //sun gets higher as we move "east" which is 0,0,-1 direction
 
@@ -968,16 +968,16 @@ void main() {
                              
 
     //                              0,     1,    2,  3,  4,  5,  6,  7,  8,   9, 10,   
-    var initial_values       =  [  0.,   .24,    4, 0., 0., 0., 14, 0., 0.,  .1,  7,
+    var initial_values       =  [  0.,   -.36,    4, 0., 0., 0., 14, 0.8, 0.,  .1, 10,
 
     //                             11,  12, 13,  14, 15,  16, 17, 18, 19, 20, 21, 22,  
-                                 .035,  0., 0., -2., 0., -.8, 0., 0., 0., 0., 0., 0.,
+                                 .035,  0., 0.3, -2., 0., -.8, 0., 0., 0., 0., 0., 0.,
 
     //                             23, 24, 25, 26, 27, 28, 29, 30, 31, 32,  33,  34,
                                     2, 60,  0,  0, .1,  0,  0,  0,  0, .4, 1.1, .04,
 
     //                             35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47
-                                   .5,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0.
+                                   -2.6,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0.
                                 ];
 
     //                              0,  1,  2,  3,  4,   5,   6,  7,  8,  9, 10, 
@@ -1077,7 +1077,7 @@ void main() {
                  ,0., 1., 0.
                  ,0., 0., 1. ];
 
-    var zaxis_speed = .1;
+    var zaxis_speed = .01;
 
     var xz, yz, xy; 
     var current_mat = [1.,0.,0.,
