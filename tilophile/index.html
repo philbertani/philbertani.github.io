@@ -93,7 +93,6 @@
             <input type="number" id="zoom_multiplier" value="1.0" class="ti"/> Zoom Factor
             <br>
 
-
             <input type="text" id="wheel_param_value" value="1.0" class="ti" /> Wheel Param Value 
             <br>
 
@@ -185,14 +184,18 @@
         //the fill in algorithm so subtract 1 off the final Red component
         float tilec = mod( tile_num, params[16] );
 
+        float lum_mod = 0.;
+        if ( params[11] != 0.) lum_mod = -.6;
         //for reasons I don't quite understand t1.z alpha value has to drive here
         gl_FragColor = t1
                        + vec4( t2.xyz*(1.+params[18])  , 0.)
                        + vec4( t3.xyz*params[11], 0.)
                        + vec4( .2*vec3(cos( freq*vPosition.z ) ), 0.)   //if tiling has changing angles...
-                       + vec4( (1.0+params[13]) * vec3( tilec/params[16] ), 0. )
-                       + vec4( params[1] - 1., params[2], params[3], 0.)
-                       + vec4( vec3( params[4] ), 0.);
+                       + vec4( (1.0+params[13]-.8) * vec3( tilec/params[16] ), 0. )
+                       + vec4( params[1] -.5, params[2]+.5, params[3] +.5, 0.)  //have to compensate for the default fill colors to make gray
+                       + vec4( vec3( params[4] + lum_mod ), 0.);
+
+        //maybe do a total luminance check?
         
 
         if ( t1.y != 0. ) gl_FragColor = vec4(0.);
@@ -485,6 +488,7 @@
           
     var glide_amount = square_cell_width[0]/3;
     var glide_amount2 = 0.0;;
+    var deviation_from_square = 1.;
 
     var glide_min_vtx = 0;
     var glide_vertex_x = 0;
@@ -496,10 +500,10 @@
   
     //this has to be the same as the drop down list for choosing a tiling
     var cell_types = { HEXAGON:0, RHOMBUS:1, SQUARE:2, SQUARE2:3, SQUARE3:4, 
-                       HEXAGON2:5, SQUARE_GLIDE:6, TRIANGLE:7, RHOMBUS2:8, DIAMONDF:9};
+                       HEXAGON2:5, SQUARE_GLIDE:6, TRIANGLE:7, RHOMBUS2:8, SQUARE4:9, DIAMONDF:10};
 
     var tiling_names = [ "HEXAGON", "RHOMBUS", "SQUARE", "SQUARE2", "SQUARE3", 
-                         "HEXAGON2", "SQUARE_GLIDE", "TRIANGLE", "RHOMBUS2", "DIAMONDF" ];
+                         "HEXAGON2", "SQUARE_GLIDE", "TRIANGLE", "RHOMBUS2", "SQUARE4", "DIAMONDF" ];
  
     //SQUARE2=square with rotational symm
     //SQUARE3 is antisymmetric around the midpoint of each edge, so moving one vertex moves 8 vertices
@@ -530,9 +534,9 @@
                   "dR"/*22*/,"dG"/*23*/,"dB"/*24*/
                   ];                  
 
-    var initial_values       = [ 0., 0., 0., 0., 0., 0., 0., 0. 
+    var initial_values       = [ 0.5, 0., 0., 0., 0., 0., 0., 0. 
                                 ,0, 0, 0, 0.0, 0.0, 0.0, ref_sz, unit_cell_scale 
-                                 ,2., 0., 0.
+                                 ,1., 0., 0.
                                  ,0.5, 0.5, 0.5
                                  ,0. ,0., 0., 0. ];
 
@@ -655,6 +659,7 @@
     var scene_number  = 0;
 
     function get_url_params() {
+
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
         if ( urlParams.has('tiling') ) {
@@ -667,12 +672,13 @@
         if ( urlParams.has('glide') ) {
             console.log("glide param from url ",urlParams.get('glide') );
             glide_amount = parseFloat(urlParams.get('glide'));
-            glide_amount *= square_cell_width[0];
+            glide_amount *= square_cell_width[0];  //input paramater should be a fraction 0 to 1
         }
 
         if ( urlParams.has('sdev') ) {
   
-            document.getElementById("square_deviation").value = parseFloat(urlParams.get('sdev'));
+            deviation_from_square = parseFloat(urlParams.get('sdev'));
+            document.getElementById("square_deviation").value = deviation_from_square;
             
         }
 
@@ -779,8 +785,11 @@
             texture_coords = [...i2.texture_coords];
             corner_points = [...i2.corner_points];
             chosen_tiling = i2.chosen_tiling;
+            
+            if ( i2.glide_amount ) glide_amount = i2.glide_amount;
+            if ( i2.deviation_from_square ) deviation_from_square = i2.deviation_from_square;
 
-            //init_unit_cells();   //not going to happen
+            //init_unit_cells();   //not going to happen, messes things up - figure it out
 
             grid_reference_points.length = 0;
             recompute_all_reference_triangles();
@@ -813,7 +822,9 @@
             grid_indices2: grid_indices2,
             texture_coords: texture_coords,
             corner_points: corner_points,
-            chosen_tiling: chosen_tiling
+            chosen_tiling: chosen_tiling,
+            glide_amount: glide_amount,
+            deviation_from_square: deviation_from_square
         };
 
         //dont forget stringify for objects
@@ -1196,9 +1207,7 @@
             var yy = -square_cell_width[1]*4.;
             for (var j=0; j<9; j++) {
                 square_glide_tiling_map.push([ xx + (j%2)*glide_amount , yy, angles[i%2][j%2] ]);
-                yy += square_cell_width[1];
-                
-                     
+                yy += square_cell_width[1];            
             }
             xx += square_cell_width[0];
         }
@@ -2446,7 +2455,7 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
         }
 
         var min_dev = .1;
-        var deviation_from_square = document.getElementById("square_deviation").value;
+        deviation_from_square = document.getElementById("square_deviation").value;
         if (deviation_from_square < min_dev) {
             deviation_from_square = min_dev;
             document.getElementById("square_deviation").value = min_dev;
@@ -2568,6 +2577,8 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
             newform.appendChild(document.createElement('br'));
         }
 
+        //params[16] is Color Mod which needs to be different for different tiling types
+        
         //toggle_hidden_attribute();
 
         resizeCanvas();
@@ -2576,7 +2587,12 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
 
         //finally kick off a GPU rendering
         drawScene();
+
+        document.getElementById("Color Mod").valueAsNumber += colorModArray[chosen_tiling];
+
     }
+
+var colorModArray = [0,2,1,0,0,1,1,0,0,1,1];
 
 ////////// Tiling Setup ///////////////////////////////////
 
@@ -3369,6 +3385,7 @@ function vnormalize( p1 ) {
     return ( {x: p1.x/vlen, y: p1.y/vlen} );
 }
 
+
 function init_tiling() {
 
     init_unit_cells();
@@ -3377,6 +3394,8 @@ function init_tiling() {
         console.log(chosen_tiling, " does not exist yet");
         return;
     }
+
+    //for some reason the user parameters are not in the html doc yet
 
 }
 
