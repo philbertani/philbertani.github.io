@@ -186,19 +186,25 @@
 
         float lum_mod = 0.;
         if ( params[11] != 0.) lum_mod = -.6;
+
         //for reasons I don't quite understand t1.z alpha value has to drive here
-        gl_FragColor = t1
+
+        if ( t1.y != 0. ) {
+            gl_FragColor = vec4(0.);  //the point was not inside the polygon
+        }
+        else {
+            gl_FragColor = t1
                        + vec4( t2.xyz*(1.+params[18])  , 0.)
                        + vec4( t3.xyz*params[11], 0.)
                        + vec4( .2*vec3(cos( freq*vPosition.z ) ), 0.)   //if tiling has changing angles...
                        + vec4( (1.0+params[13]-.8) * vec3( tilec/params[16] ), 0. )
                        + vec4( params[1] -.5, params[2]+.5, params[3] +.5, 0.)  //have to compensate for the default fill colors to make gray
                        + vec4( vec3( params[4] + lum_mod ), 0.);
-
+        }
         //maybe do a total luminance check?
         
 
-        if ( t1.y != 0. ) gl_FragColor = vec4(0.);
+        //if ( t1.y != 0. ) gl_FragColor = vec4(0.);
  
     }
 
@@ -240,7 +246,6 @@
 
         else if (color_type == 3.) {
                
-
                 // this branch almost breaks the GPU, turn off translate mode when Fill Mode is on
                 float winding_sum = 0.;
                 for (int i=0; i<MAX_NUM_VERTICES; i++) {
@@ -473,8 +478,8 @@
 <script type="text/javascript">
     
     // window.location.href is the url of this page
-    //var color_map_urls = [];
-    //color_map_urls.push("         ");
+    var color_map_urls = [];
+    if (color_map_url_source) { color_map_urls = color_map_url_source; color_map_url_source = []; }
 
     var stl_data;
 
@@ -1599,7 +1604,11 @@
         //console.log("ref_sz " + ref_sz);  
 
         use_triangles = false;
-        if (param_data[7] == 1.) use_triangles = true;
+        if (param_data[7] == 1.) {
+            use_triangles = true; total_mouse_deltax=0; total_mouse_deltay=0;  
+            document.getElementById("Translate Mode").value = 0;
+        }
+
         //use_triangles means we cause every pixel to be computed by rasterizing triangles computed 
         //by adding 0,0 to every pair of successive vertices
 
@@ -1665,7 +1674,7 @@
 
         // have to call drawscene again and skip this but draw everything else
         // with fill mode on
-        var xy_translate = [ total_mouse_deltax, total_mouse_deltay ];
+        var xy_translate = use_triangles ? [0,0] : [ total_mouse_deltax, total_mouse_deltay ] ;
 
         gl.uniform3fv(tiling_map_loc, new Float32Array( [0,0,0] ) );
         gl.uniform2fv(xy_translate_loc, new Float32Array(xy_translate) );
@@ -1775,9 +1784,9 @@
         gl.uniform1fv(frag_vertex_x_loc, new Float32Array(frag_vertex_x));
         gl.uniform1fv(frag_vertex_y_loc, new Float32Array(frag_vertex_y));        
 
-        var xy_translate = [ total_mouse_deltax, total_mouse_deltay ];
+        var xy_translate = use_triangles ? [0,0] : [ total_mouse_deltax, total_mouse_deltay ] ;
+        //var xy_translate = [ total_mouse_deltax, total_mouse_deltay ];
 
-      
         //this loop tiles the plane with around 25 copies of the unit cell (at least for square)
         for (var i=0; i<tile_map.length; i++)
         {
@@ -4821,6 +4830,10 @@ function load_new_texture() {
   loadTexture(gl, color_map_urls[text_num_to_load]);
 }
 
+window.onerror = function(message, file, lineNumber) {
+    console.log("there was a bad exception - big whoop dee doo");
+    return false;
+}
 </script>
 
 </html>
