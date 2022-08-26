@@ -31,7 +31,6 @@
   
 </div>
 
-
     <div id="canvas01_div" style="position:absolute; top:0px; left:0px; font-size:10px; z-index:-1">
         <canvas id="canvas01" style="border: none;" oncontextmenu="return true"></canvas>
     </div>
@@ -140,23 +139,20 @@
 <script id="fill-plane" type="x-shader/x-fragment">
      
 
-    #define MAX_NUM_VERTICES 256   //make sure to change the same javascript variable
+    #define MAX_NUM_VERTICES 512   //make sure to change the same javascript variable
     precision highp       float;
 
     varying   vec3        vPosition;
-    varying   vec2        vTextCoord;              //for use supplied texture
-    varying   vec2        filledin_tex_coords;
+    varying   vec2        vTextCoord;               //for use supplied texture
     varying   vec2        tex_coords;    
 
-    uniform   float       params[25];
+    uniform   float       params[30];
     uniform   float       tile_num;
 
     uniform   sampler2D   texture_from_user;        //we might get colors from a texture map
     uniform   sampler2D   texture;                  //the first framebuffer/texture we wrote to
     uniform   sampler2D   texture_freehand;         //freehand drawing over unit cell to decorate
-     
-    //float     freq =      .3+params[0];
-
+ 
     //here is the story: we wrote out the first filled in centered unit cell
     //using the angle sum of each point with all of the successive pairs of vertices
     //to make sure it was actually within the polygon since we are just covering
@@ -185,15 +181,10 @@
         float tilec = mod( tile_num, params[16] );
 
         float lum_mod = 0.;
-        if ( params[11] != 0.) lum_mod = -.6;
+        if ( params[11] != 0.) lum_mod = -.1;
 
-        //for reasons I don't quite understand t1.z alpha value has to drive here
-
-        if ( t1.y != 0. ) {
-            gl_FragColor = vec4(0.);  //the point was not inside the polygon
-        }
-        else {
-            gl_FragColor = t1
+        {
+            gl_FragColor = t1  //t1 has alpha of 1
                        + vec4( t2.xyz*(1.+params[18])  , 0.)
                        + vec4( t3.xyz*params[11], 0.)
                        + vec4( .2*vec3(cos( freq*vPosition.z ) ), 0.)   //if tiling has changing angles...
@@ -201,11 +192,9 @@
                        + vec4( params[1] -.5, params[2]+.5, params[3] +.5, 0.)  //have to compensate for the default fill colors to make gray
                        + vec4( vec3( params[4] + lum_mod ), 0.);
         }
-        //maybe do a total luminance check?
-        
 
-        //if ( t1.y != 0. ) gl_FragColor = vec4(0.);
- 
+        //maybe do a total luminance check?
+
     }
 
 </script>
@@ -213,7 +202,7 @@
 
 <script id="shader-fs" type="x-shader/x-fragment">
      
-    #define MAX_NUM_VERTICES 256   //make sure to change the same javascript variable
+    #define MAX_NUM_VERTICES 512   //make sure to change the same javascript variable
     precision highp       float;
 
     varying   vec3        vPosition;
@@ -221,17 +210,15 @@
     varying   vec2        vTextCoord;
     varying   vec2        orig_vPosition;
 
-    uniform   float       params[25];
+    uniform   float       params[30];
     uniform   float       mouse_coords[12];
 
     uniform   float       color_type;
 
-    uniform   float       frag_vertex_x[MAX_NUM_VERTICES];
-    uniform   float       frag_vertex_y[MAX_NUM_VERTICES];
-     
+    uniform   sampler2D   vertexTexture;    
+  
     float     freq =      .3+params[0];
-
-
+   
     void main(void) {
 
         if (color_type == 1.) {
@@ -246,32 +233,43 @@
 
         else if (color_type == 3.) {
                
-                // this branch almost breaks the GPU, turn off translate mode when Fill Mode is on
+            float num_vertices = params[25];  //kluge yes
+            float texel_size = 1./(num_vertices-1.);
+              
                 float winding_sum = 0.;
+
                 for (int i=0; i<MAX_NUM_VERTICES; i++) {
                 
-                    if ( frag_vertex_x[i+1] > .9e9 ) break;
+                    float fi = float(i);
+                    float fi2 = fi + 1.;
+                    vec2  vtx  = texture2D( vertexTexture, vec2( fi*texel_size , 0. ) ).xy ;
+                    vec2  vtx2 = texture2D( vertexTexture, vec2( fi2*texel_size, 0. ) ).xy ;
 
-                    float u_x = frag_vertex_x[i+1] - orig_vPosition.x;
-                    float u_y = frag_vertex_y[i+1] - orig_vPosition.y;
-                    float v_x = frag_vertex_x[i]   - orig_vPosition.x;
-                    float v_y = frag_vertex_y[i]   - orig_vPosition.y;
+                    if ( vtx2.x > .9e9 ) break;
+
+                    float u_x = vtx2.x - orig_vPosition.x;
+                    float u_y = vtx2.y - orig_vPosition.y;
+
+                    float v_x = vtx.x - orig_vPosition.x;
+                    float v_y = vtx.y - orig_vPosition.y;
 
                     float sinuv = u_x*v_y - v_x*u_y;  //cross product proportional to sine of angle
                     float cosuv = u_x*v_x + u_y*v_y;  //dot product proportional to cosine of angle
 
                     float angle = atan( sinuv, cosuv );
                     winding_sum += angle;
-                    
+
                 }
 
-                if ( abs( abs( winding_sum ) - 6.283 )  < .001 ) {  //if this point is inside then angles add up to 2pi
+                if ( abs( abs( winding_sum ) - 6.283 )  < .1  ) {  //if this point is inside then angles add up to 2pi
                                                                     //.001 tolerance can be increased a little but not decreased
                     gl_FragColor = vec4( 1., 0., 0., 1. ) ; 
                 }
                 else  {
                     gl_FragColor = vec4( 0. );  //so anything written next gets mixed with something that is nothing
                 }
+
+                //gl_FragColor = vec4(1.,0.,0.,1.);
                
         }
  
@@ -288,7 +286,7 @@
 
             if ( params[7] == 0.) {
             
-                float lum = params[4] + .2*cos(vPosition.z*freq);
+                float lum = params[4] - .2; //f + .2*cos(vPosition.z*freq);
 
                 //for hex tiling, the rotation value creates a unique
                 //scheme where no adjacent tiles are the same color!
@@ -311,10 +309,7 @@
 
 <script id="shader-vs" type="x-shader/x-vertex">
     attribute vec3        aVertexPosition;
-    attribute vec2        aTextCoord;   
-
-    attribute vec2        a_texCoords;
-    varying   vec2        filledin_tex_coords;     
+    attribute vec2        aTextCoord;     
 
     varying   vec3        vPosition;
     varying   vec2        tex_coords;
@@ -362,8 +357,6 @@
         tex_coords = aVertexPosition.xy;
         vTextCoord = aTextCoord;
 
-        filledin_tex_coords = a_texCoords;
-
     }
     //END OF GPU PROGRAM
 
@@ -399,7 +392,7 @@
 
     varying   vec2        v_texCoords;
 
-    uniform   float       params[25];
+    uniform   float       params[30];
     uniform   float       mouse_coords[12];
 
     uniform   float       offset_x[25];
@@ -412,8 +405,9 @@
 
     void main() {
 
-        //gl_FragColor = texture2D(texture, v_texCoords);
+        gl_FragColor = texture2D(texture, v_texCoords);
 
+        /*
         vec4 total_color = vec4(0.0,0.0,0.0,0.0);
 
         for (int i=0; i<5; i++) {
@@ -425,6 +419,7 @@
         //weights are already normalized
 
         gl_FragColor = total_color;
+        */
     }
 
 </script>
@@ -436,7 +431,10 @@
     #else
        precision mediump float;
     #endif
-
+ 
+    #define clearColor vec4(1.,0.,1.,1.)
+    #define lc  length(clearColor)
+ 
     uniform   sampler2D   texture_final;
 
     varying   vec2        v_texCoords;
@@ -454,8 +452,9 @@
 
     void main() {
 
-        //gl_FragColor = texture2D(texture, v_texCoords);
+        gl_FragColor = texture2D(texture_final, v_texCoords);
 
+        /*
         vec4 total_color = vec4(0.0,0.0,0.0,0.0);
 
         for (int i=0; i<5; i++) {
@@ -466,7 +465,15 @@
         }
         //weights are already normalized
 
+        //how do we reliably change the magenta background to something else more subtle?
+   
+        float testc = acos(dot(total_color,clearColor)/length(total_color)/lc);
+ 
+        //if (testc < .01 ) total_color = vec4(.6,.7,.7,1.);
+
+        //total_color.rgb = pow(total_color.rgb,vec3(6.));  //maybe make this an option?
         gl_FragColor = total_color;
+        */
     }
 
 </script>
@@ -479,26 +486,28 @@
     
     // window.location.href is the url of this page
     var color_map_urls = [];
-    if (color_map_url_source) { color_map_urls = color_map_url_source; color_map_url_source = []; }
+    if ( typeof color_map_url_source != 'undefined') { color_map_urls = color_map_url_source; color_map_url_source = []; }
+    else { color_map_urls.push(" "); }
 
     var stl_data;
 
-    var unit_cell_scale = 0.0;
-    var ref_sz = .0060;    //size of ref point triangles, needs to depend on resolution like click_tol
+    var unit_cell_scale = 1.0;
+
+    var init_ref_sz = ref_sz = .004;    //size of ref point triangles, needs to depend on resolution like click_tol
     var ww = .12;          //field of view is -1 to +1 so ww is going to determine how big the unit cell is
                            //relative to the maximum viewing area
     var square_cell_width = [ww*2.,ww*2.];
 
     var square_tilt_adjust = [ 0, 0 ];
           
-    var glide_amount = square_cell_width[0]/3;
+    var glide_amount = .1*square_cell_width[0];
     var glide_amount2 = 0.0;;
     var deviation_from_square = 1.;
 
     var glide_min_vtx = 0;
     var glide_vertex_x = 0;
     var glide_vertex_y = 0;
-    var init_extra_glide_reflection_vertices = false;
+
     var vtx_max = 10000;  //vtx_max is added to corner vertices
 
     var url_tiling;
@@ -536,20 +545,20 @@
                   "Ref Triangle Size"/*14*/, "Unit Cell Scale"/*15*/,
                   "Color Mod"/*16*/,"Brush Size"/*17*/,"Freehand Mult"/*18*/,
                   "F Red"/*19*/,"F Green"/*20*/,"F Blue"/*21*/,
-                  "dR"/*22*/,"dG"/*23*/,"dB"/*24*/
+                  "dR"/*22*/,"dG"/*23*/,"dB"/*24*/,"Num Vertices"/*25*/
                   ];                  
 
-    var initial_values       = [ 0.4, 0., 0., 0., 0., 0., 0., 0. 
-                                ,0, 0, 0, 0.0, 0.0, 0.0, ref_sz, unit_cell_scale 
-                                 ,1., 0., 0.
+    var initial_values       = [ 0.4, 0., 0., 0., -.2, 0., 0., 0. 
+                                ,0, 0, 0, 0., 0., 0., ref_sz, unit_cell_scale 
+                                 ,1., 0., -.3
                                  ,0.5, 0.5, 0.5
-                                 ,0. ,0., 0., 0. ];
+                                 ,0. ,0., 0., 0., 0. ];
 
     var param_default_deltas = [ .02, .02, .02, .02, .02, .02, .02, 1. 
-                                 ,1, 1, 1, .02, .02, .02, .0002, .01
+                                 ,1, 1, 1, .02, .02, .02, .0002, .001
                                  ,1., .002, .1 
                                  ,.1, .1, .1
-                                 ,.01, .01, .01];
+                                 ,.01, .01, .01, 1.];
 
     //a set of points relatuve to 0,0 for calculating averages around each iterated pixel
     var offset = { "x":[],"y":[],"weights":[],"params":[],
@@ -577,7 +586,7 @@
     ]
 
     var params_loc;
-    var params_loc2;           //to send to the on screen shader  
+    var params_loc2;           // to send to the on screen shader  
     var params_loc3;
     var params_loc4;
 
@@ -604,12 +613,10 @@
 
     //texture map coord stuff to be passed to the on screen shaders
     var a_coords_loc;
-    var a_texCoords_loc;   //for canvas not main image! 
+    var a_texCoords_loc;    
 
     var a_coords_loc2;
-    var a_texCoords_loc2;   //for canvas not main image! 
-
-    var a_texCoords_loc3;   // for the filled in image written to TEXTURE3
+    var a_texCoords_loc2;   
 
     var u_texture;
     var u_texture2;
@@ -620,7 +627,8 @@
     var u_texture_final2;
 
     var u_texture_freehand;
-
+    var u_vertexTexture;
+ 
     var gl;
 
     var prog_canvas;
@@ -855,7 +863,7 @@
         }, 1500);
     };
 
-    var init_tex_size = 1024;      //this is the size of the off screen texture we render to 
+    var init_tex_size = 1024*2;    //this is the size of the off screen texture we render to 
     var tex_size = init_tex_size;  //we should really make this proportional to the canvas size
                                    //although with it much larger all the time we do get nice
                                    //anti aliasing automatically
@@ -886,8 +894,8 @@
         tiling_map_loc2   = gl.getUniformLocation(prog_texture2, "tiling_map");
         xy_translate_loc2 = gl.getUniformLocation(prog_texture2, "xy_translate");
 
-        frag_vertex_x_loc = gl.getUniformLocation(prog_texture, "frag_vertex_x");
-        frag_vertex_y_loc = gl.getUniformLocation(prog_texture, "frag_vertex_y");
+        //frag_vertex_x_loc = gl.getUniformLocation(prog_texture, "frag_vertex_x");
+        //frag_vertex_y_loc = gl.getUniformLocation(prog_texture, "frag_vertex_y");
 
         aVertexPosition   = gl.getAttribLocation(prog_texture, "aVertexPosition");
         aTextCoord        = gl.getAttribLocation(prog_texture, "aTextCoord");
@@ -946,8 +954,6 @@
         a_coords_loc2 =  gl.getAttribLocation(prog_canvas2, "a_coords");
         a_texCoords_loc2 =  gl.getAttribLocation(prog_canvas2, "a_texCoords");
 
-        a_texCoords_loc3 =   gl.getAttribLocation(prog_texture2, "a_texCoords");
-
         u_texture  = gl.getUniformLocation(prog_canvas, "texture");
         u_texture2  = gl.getUniformLocation(prog_texture2,"texture");
         u_texture_from_user = gl.getUniformLocation(prog_texture2, "texture_from_user");
@@ -956,6 +962,8 @@
         u_texture_final2 = gl.getUniformLocation(prog_canvas2, "texture_final");
 
         u_texture_freehand = gl.getUniformLocation(prog_texture2, "texture_freehand");
+
+        u_vertexTexture    = gl.getUniformLocation(prog_texture, "vertexTexture");
 
         //location variables are only non null if the data is actually used in a non trivial way in a shader
 
@@ -978,6 +986,7 @@
     var ext, ext2, ext3;
 
     function texture_parameters() {
+
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, tex_size, tex_size, 0, gl.RGBA, gl.FLOAT, null);
         //With null as the last parameter, the previous method allocates memory for the texture and fills it with zeros.
 
@@ -986,14 +995,15 @@
      
         // MAG is magnification and is in effect if the model face size is larger than texture size
         // MIN is minification and blah blah
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST); //gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); //gl.LINEAR);
         // The previous line sets the minification filter to gl.LINEAR so we won't neet mipmaps
 
         if (ext3){
             var max = gl.getParameter(ext3.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
             gl.texParameterf(gl.TEXTURE_2D, ext3.TEXTURE_MAX_ANISOTROPY_EXT, max);
         }
+
     }
 
     var did_init_adjustment = false;
@@ -1013,13 +1023,19 @@
 
         max_texture_units = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS);
         //console.log("Max Texture Units: ",max_texture_units);
-
         
         var tex_size_mult = document.getElementById("tex_size_mult").valueAsNumber;
 
-        //2 crashes the gpu
-        tex_size_mult = Math.min(tex_size_mult, 1.);
+        //3 crashes the gpu
+        tex_size_mult = Math.min(tex_size_mult, 2.);
         document.getElementById("tex_size_mult").value = tex_size_mult;
+ 
+        ref_sz = init_ref_sz/(1.+tex_size_mult*.5);
+        console.log(ref_sz,"ref size");
+        adjusted_texture = true;
+ 
+        var rfs = document.getElementById("Ref Triangle Size");
+        if ( rfs ) rfs.value = ref_sz;
 
         tex_size = init_tex_size * Math.pow(2.0,tex_size_mult);  //must be a power of 2
 
@@ -1053,7 +1069,7 @@
         texture_final = gl.createTexture();
         gl.activeTexture(gl.TEXTURE3);
         gl.bindTexture(gl.TEXTURE_2D, texture_final);
-        texture_parameters();
+        //texture_parameters();
        
         framebuffer2 = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer2);
@@ -1067,7 +1083,7 @@
         texture_freehand = gl.createTexture();
         gl.activeTexture(gl.TEXTURE4);
         gl.bindTexture(gl.TEXTURE_2D, texture_freehand);
-        texture_parameters();
+        //texture_parameters();
         
         framebuffer_freehand = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer_freehand);
@@ -1551,6 +1567,9 @@
     mouse_coords = [];
 
     var time = 0;
+    var orig_grid_vertices = [];
+    var shrinking = false;
+    var adjusted_texture = false;
 
     function drawScene() {
 
@@ -1561,15 +1580,17 @@
         save_scene(param_data, mouse_coords);
       
         test_ref_sz = parseFloat(param_data[14]);
-        if ( ref_sz != test_ref_sz ) {
+
+        if ( ref_sz != test_ref_sz || adjusted_texture ) {
             
-            ref_sz = Math.max(.003,Math.min(test_ref_sz, .015));
+            ref_sz = Math.max(.002,Math.min(test_ref_sz, .015));
             param_data[14] = ref_sz;            
             document.getElementById("Ref Triangle Size").value = ref_sz;
             //recompute all triangles - what a pain
             grid_reference_points.length = 0;
             recompute_all_reference_triangles();
             param_change = true;
+            adjusted_texture = false;
         }
     
         //shrink or expand the unit cell
@@ -1577,32 +1598,36 @@
         //see writing out of stl file for 3d printing above for the proper way to do it by
         //moving each segment in the direction of its inward normal
         test_unit_cell_scale = parseFloat(param_data[15]);
-        if ( unit_cell_scale != test_unit_cell_scale) {
 
-            var scale_factor  = 1.;
-            if ( test_unit_cell_scale > unit_cell_scale ) {
-                scale_factor = 1. + param_default_deltas[15];
+        if ( unit_cell_scale != test_unit_cell_scale) {
+    
+            //sometimes this process totally whacks the unit cell so save the original so we can recover
+            //when the scale factor is reset to 1
+            if ( !shrinking ) { orig_grid_vertices = [...grid_vertices];}
+            shrinking = true;   //shorthand for shrinking or expanding but we most likely want to shrink
+
+            var scale_factor = unit_cell_scale / test_unit_cell_scale - 1;
+
+            stl_file( scale_factor );
+            //this does not work when we have merged line segments - getting NaN
+
+            if ( Math.abs(param_data[15] - 1) < 1e-6) { 
+                shrunk.length=0; shrunk = [...orig_grid_vertices];
+                shrinking = false;
             }
-            else {
-                scale_factor = 1. - param_default_deltas[15];
-            }
-          
-            //console.log( test_unit_cell_scale + "," + unit_cell_scale + "," + scale_factor);
 
             grid_reference_points.length = 0;
             for (var i = 0; i<grid_vertices.length-2; i+=3) {
-                grid_vertices[i] *= scale_factor;
-                grid_vertices[i+1] *= scale_factor;
+                grid_vertices[i] = shrunk[i]; 
+                grid_vertices[i+1] = shrunk[i+1]; ;
                 add_reference_triangle( grid_vertices[i], grid_vertices[i+1] );
                 param_change = true;
             }
-
+          
             unit_cell_scale = test_unit_cell_scale;
+
         }
         
-
-        //console.log("ref_sz " + ref_sz);  
-
         use_triangles = false;
         if (param_data[7] == 1.) {
             use_triangles = true; total_mouse_deltax=0; total_mouse_deltay=0;  
@@ -1632,6 +1657,7 @@
         
         gl.activeTexture(gl.TEXTURE4);
         gl.bindTexture(gl.TEXTURE_2D, texture_freehand);
+        //texture_parameters();
         gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer_freehand);  
  
         //console.log("texture is: ",gl.getParameter(gl.TEXTURE_BINDING_2D) );
@@ -1707,6 +1733,7 @@
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texture);
+        //texture_parameters();
         gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer);
 
         gl.useProgram(prog_texture);
@@ -1732,8 +1759,8 @@
             //is turning fill mode off and on without modifying vertices
             //but it is fast enough - especially now that we only do the
             //inside polygon check for one cell instead of all of them
+
             gl_primitive_type = gl.TRIANGLES;
-            //gl_primitive_type = gl.LINE_STRIP
             color_type = 3.;
             gl.clearColor(0.,0.,0.,0.);
         }
@@ -1753,39 +1780,19 @@
         //recompute_grid already set up the gridVertexPositionBuffer
         //shader has model data loaded for the unit cell object so now we can just
         //move it around the screen using the vertex shader!
-
-        //gl.LINE_STRIP gives a cool landscape height effect - use it too
-        //if () gl_primitive_type = gl.LINE_STRIP; //gl.TRIANGLES;
-
-        //the wrong triangles are overwriting others, have to figure out the right order
-        //triangulation of a complex polygon is too hard, we use the GPU to do it the easy way:
-        //figure out if a point is within the polygon by doing the sum of the angles the point
-        //makes with each vertex - it should be 360 degrees if the point is inside
+ 
+        //we should only do this if fill mode is on  - I think
+        if (use_triangles) create_vertexTexture(gl);
+        gl.activeTexture(gl.TEXTURE6);
+        gl.bindTexture(gl.TEXTURE_2D, vertexTexture);
+        gl.uniform1i(u_vertexTexture, 6);
+        param_data[25] = vertex_order.length;
+  
+        var xy_translate = use_triangles ? [0,0] : [ total_mouse_deltax, total_mouse_deltay ] ;
+        //var xy_translate = [ total_mouse_deltax, total_mouse_deltay ];
 
         gl.uniform1fv(params_loc, new Float32Array(param_data));
         gl.uniform1fv(mouse_coords_loc, new Float32Array(mouse_coords));
-
-        //we can store up to 1024 xy coordinates and send them to the fragment shader
-        //but that is best case and may depend on gpu card
-        frag_vertex_x.length = 0;
-        frag_vertex_y.length = 0;
-
-        for (var i=0; i<vertex_order.length; i++) {
-            ii = vertex_order[i]; 
-            frag_vertex_x.push( grid_vertices[ii*3] );
-            frag_vertex_y.push( grid_vertices[ii*3+1] );            
-        }
-
-        for (var i=vertex_order.length; i<MAX_NUM_VERTICES; i++) {
-            frag_vertex_x.push( 1e9 );
-            frag_vertex_y.push( 1e9 );
-        }
-        
-        gl.uniform1fv(frag_vertex_x_loc, new Float32Array(frag_vertex_x));
-        gl.uniform1fv(frag_vertex_y_loc, new Float32Array(frag_vertex_y));        
-
-        var xy_translate = use_triangles ? [0,0] : [ total_mouse_deltax, total_mouse_deltay ] ;
-        //var xy_translate = [ total_mouse_deltax, total_mouse_deltay ];
 
         //this loop tiles the plane with around 25 copies of the unit cell (at least for square)
         for (var i=0; i<tile_map.length; i++)
@@ -1798,7 +1805,8 @@
         }
 
         // gl.disableVertexAttribArray(aVertexPosition);
-
+        // keep the current Vertex Attrib buffer active or Fill Mode will not work 
+        // since it uses the same buffer with just different Indices
     
         if (use_triangles) {
 
@@ -1812,6 +1820,7 @@
 
             gl.activeTexture(gl.TEXTURE3);
             gl.bindTexture(gl.TEXTURE_2D, texture_final);
+            texture_parameters();
             gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer2);
 
             gl.useProgram(prog_texture2);
@@ -1843,12 +1852,6 @@
             gl.bindTexture(gl.TEXTURE_2D, texture_from_user);
             gl.uniform1i(u_texture_from_user, 1);
 
-
-            //we need just square texture coords since the texture we wrote to is just a square
-            gl.bindBuffer(gl.ARRAY_BUFFER, texturePositionBuffer);
-            gl.vertexAttribPointer(a_texCoords_loc3, 2, gl.FLOAT, false, 0, 0);
-            gl.enableVertexAttribArray(a_texCoords_loc3);
-
             gl.uniform1fv( params_loc4, new Float32Array(param_data));
 
             //use_triangles sets it to just one 
@@ -1867,9 +1870,7 @@
 
         gl.disableVertexAttribArray(aVertexPosition);
         gl.disableVertexAttribArray(aTextCoord);
-        gl.disableVertexAttribArray(a_texCoords_loc3);
 
-        
         if ( document.getElementById("Turn off Triangles").valueAsNumber == 0 &&
              document.getElementById("Fill Mode").valueAsNumber == 0
              && !use_triangles ) {
@@ -1963,11 +1964,9 @@
         gl.disableVertexAttribArray(a_coords_loc2);
         gl.disableVertexAttribArray(a_texCoords_loc2);
 
-
       }
   
       else {
-
 
         //now render the texture to on screen canvas
         gl.bindFramebuffer(gl.FRAMEBUFFER,null); // The null means to use the default framebuffer (which draws onscreen)
@@ -2116,6 +2115,23 @@
 
     }
 
+    function merge_line_check_driver() {
+
+            var c1 = merge_line_check(current_vertex,0);
+             
+            if ( c1[0] > -1 ) {
+                return [c1, [current_vertex] ];
+            }
+
+            var c2 = merge_line_check(current_vertex2[0],1) ;
+             
+            if ( c2[0] > -1 ) return [c2, [current_vertex2[0]] ];
+ 
+            return [ [-1,-1], [-1] ];
+
+            //return [ [-1,-1] , -1 ];
+    }
+
     function merge_line_check(vertex_to_check, pair_index) {
 
         //ii is already the element of vertex_order_index which gives us pointers to the actual
@@ -2136,22 +2152,35 @@
 
         //but the array is finite and cyclic so...
         //vertex_order always ends in 0 so the last element is at *.length-2 not *.length-1, sorry
+ 
+        var mini1i2=i2, mini3i4=i3;
+        var maxi1i2=i1, maxi3i4=i4;
         if ( ii == 0 ) {
             i1 = vertex_order.length-2;
             i2 = vertex_order.length-3;
+            mini1i2 = i2;
+            maxi1i2 = i1;
         }
         else if ( ii == 1 ) {
             i1 = 0;
             i2 = vertex_order.length-2;
+            mini1i2 = i1;
+            maxi1i2 = i2;
         }
         else if ( ii == vertex_order.length-2 ) {
             i3 = 0;
             i4 = 1;
+            mini3i4 = i3;
+            maxi3i4 = i4;
         }
         else if ( ii == vertex_order.length-3 ) {
             i3 = vertex_order.length - 2;
             i4 = 0;
+            mini3i4 = i4;
+            maxi3i4 = i3;
         }
+
+        //console.log("merge info",i1,i2,i3,i4);
 
         // if the cross product of 
         // ii, i1   i1, i2
@@ -2164,28 +2193,56 @@
         var v2 = [ grid_vertices[i2i] - grid_vertices[i1i], grid_vertices[i2i+1] - grid_vertices[i1i+1] ];
 
         var an = compute_angle2(v1,v2);
-  
-        //if (  an < .02 || (6.28-an) < .02 ) alert("Merging Segments 1", pair_index);
-        if (  an < .02 || (6.28-an) < .02 ) console.log("Merging Segments from 1st of pair");
+
+        //if (  Math.abs(an) < .02 || Math.abs(6.28-an) < .02 || Math.abs(3.14-an) < .02)  { 
+        if (  Math.abs(an) < .02 || Math.abs(6.28-an) < .02 )  { 
+            //console.log("Merging Segments from 1st of pair");
+            return [mini1i2,maxi1i2];
+        }
 
         var i3i = vertex_order[i3]*3;   //don't forget to multiply by 3 to get the position in grid_vertices
         var i4i = vertex_order[i4]*3;
         var v1 = [ grid_vertices[vertex_to_check]  - grid_vertices[i3i], grid_vertices[vertex_to_check+1]  - grid_vertices[i3i+1] ];
         var v2 = [ grid_vertices[i4i] - grid_vertices[i3i], grid_vertices[i4i+1] - grid_vertices[i3i+1] ];
 
-        var an2 = compute_angle2(v1,v2);    
-        //if (  an2 < .02 || (6.28-an2) < .02 ) alert("Merging Segments 2", pair_index);
-        if (  an2 < .02 || (6.28-an2) < .02 ) console.log("Merging Segments from 2nd of pair");
+        var an2 = compute_angle2(v1,v2);   
+ 
+        if (  Math.abs(an2) < .02 || Math.abs(6.28-an2) < .02 ) {
+            //console.log("Merging Segments from 2nd of pair");
+            return [mini3i4,maxi3i4];
+        }
 
+        return [-1,-1];
     }
 
     function handleMouseUp(event) {
-
-       
+    
         if (current_vertex > -1 && !move_ref_vtx) { 
-            merge_line_check(current_vertex,0); 
-            merge_line_check(current_vertex2[0],1) ;
-            console.log("yippee!!!");
+
+            var clone_vertex = merge_line_check_driver();
+
+            if (clone_vertex[0][0] > -1) {
+
+                //clone_vertex is the vertex number in order
+                var v1 = vertex_order[clone_vertex[0][0]];
+                var v2 = vertex_order[clone_vertex[0][1]];
+            
+                console.log("cloning vertex between",v1,v2);
+                
+                mousedown = true;
+                mousedown_counter = 0;
+
+                xpoint = grid_vertices[clone_vertex[1][0]];
+                ypoint = grid_vertices[clone_vertex[1][0]+1];
+
+                xpoint -= total_mouse_deltax;
+                ypoint -= total_mouse_deltay;
+
+                //console.log("merging",xpoint, ypoint);
+ 
+                //if there already is a vertex very close don't bother - need to check
+                new_pair_of_vertices( 0, v1, v2, false, xpoint, ypoint )
+            }
        }
 
         mousedown = false;
@@ -2572,7 +2629,6 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
             b.type = 'button';
             b.setAttribute('style','position:relative; top: 4px; font-size:9px');
 
-            //how the f..k would anyone figure this out???
             //http://stackoverflow.com/questions/3495679/passing-parameters-in-javascript-onclick-event
             b.onclick = ( function() { var current_p = p; 
                                        return function() { set_wheel(current_p + ''); }
@@ -2594,6 +2650,8 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
 
         init_tiling();
 
+        //create_vertexTexture();
+
         //finally kick off a GPU rendering
         drawScene();
 
@@ -2601,7 +2659,7 @@ function createProgram(gl, vertexShaderID, fragmentShaderID) {
 
     }
 
-var colorModArray = [0,2,1,0,0,1,1,0,0,1,1];
+var colorModArray = [0,2,3,0,0,6,1,5,0,1,1];
 
 ////////// Tiling Setup ///////////////////////////////////
 
@@ -2615,7 +2673,7 @@ var colorModArray = [0,2,1,0,0,1,1,0,0,1,1];
     we need separate branches for OPPOSITE vs ROTATIONAL symmetry
 */
 
-var MAX_NUM_VERTICES = 256;   //should be more than enough
+var MAX_NUM_VERTICES = 512;   //should be more than enough
 
 var gridVertexPositionBuffer;
 var gridVertexIndexBuffer;
@@ -3499,7 +3557,23 @@ function recompute_grid()  {
         return;
     }
 
-    //console.log("shit2 " + current_vertex);
+ 
+    if ( shrinking )  {
+
+            grid_reference_points.length = 0;
+            for (var i = 0; i<grid_vertices.length-2; i+=3) {
+                grid_vertices[i] = orig_grid_vertices[i]; 
+                grid_vertices[i+1] = orig_grid_vertices[i+1]; ;
+                add_reference_triangle( grid_vertices[i], grid_vertices[i+1] );
+                param_change = true;
+            }
+          
+        unit_cell_scale = 1.; test_unit_cell_scale = 1.;
+        document.getElementById("Unit Cell Scale").value = 1.;
+        recompute_texture = true;
+        shrinking = false;
+        return;
+    }
 
     var xpoint = -1.0e6;
     if (mousex != null) xpoint = mousex/current_zoom_level;
@@ -3513,9 +3587,6 @@ function recompute_grid()  {
      
     xpoint -= total_mouse_deltax;
     ypoint -= total_mouse_deltay;
-
-
-    // console.log(xpoint,ypoint,"fuck");
 
     //freehand drawing mode we accumulate all changes to the drawing texture
     //then run the fill mode with the drawing texture overlaid
@@ -3542,8 +3613,6 @@ function recompute_grid()  {
 
         current_freehand_vertex ++;
         update_freehand_texture = true;
-
-        //console.log(current_freehand_vertex); 
 
         //we can now draw lines between the freehand vertices and accumulate the result in a texture       
         
@@ -3591,8 +3660,6 @@ function recompute_grid()  {
         return;
     }
     
-    //console.log("shit3");
-
     var ii = 0;
     var jj = 0;
     var dx = 0.0;
@@ -3649,7 +3716,7 @@ function recompute_grid()  {
         }
 
         if ( mouse_point_distance < click_tol && (  (!move_ref_vtx && vertex_ids[vertex_order[i]] < vtx_max)   
-                                                  || move_ref_vtx )
+                                                   || move_ref_vtx )
            ) {
 
             turn_off_fill_mode();
@@ -3681,155 +3748,31 @@ function recompute_grid()  {
     }
 
     //////////////////  New Pair of Vertices ////////////////////////////////////////////////////////
-
-    //console.log("shit4");
  
+    new_pair_of_vertices( min_angle, min_vtx1, min_vtx2, found_a_vertex, xpoint, ypoint );
+
+    mousedown_counter ++;
+    
+    /////////////////////////// End of New Pair of Vertices //////////////////////////////////////////
+
+}
+
+function new_pair_of_vertices( min_angle, min_vtx1, min_vtx2, found_a_vertex, xpoint, ypoint ) {
+
     var symmetry_type = unit_cells[chosen_tiling].symmetry_type;
 
     var this_edge_id_test = vertex_edge_id[min_vtx1];
    
-    //console.log("this_edge_id_test ",this_edge_id_test);
-
-    if ( init_extra_glide_reflection_vertices ) {
-
-        min_vtx1 = find_vertex_order_index( 0 );
-
-        xpoint = grid_vertices[0] + square_tilt_adjust[0];
-        ypoint = grid_vertices[1] + square_tilt_adjust[1];
-
-        turn_off_fill_mode();
-
-        max_vertex_id ++;
-        num_added_vertices ++;
-
-        vertex_ids.push(max_vertex_id);
-        add_reference_triangle(xpoint, ypoint);
-
-        var this_edge_id = vertex_edge_id[min_vtx1];
-        grid_vertices.push(xpoint, ypoint, this_edge_id);  
-        //this_edge_id will be used in vertex shader (not anymore - or yet)
-
-        var rref_vtx1 = unit_cells[chosen_tiling].ref_vtx[this_edge_id];
-        var this_edge_order_sign = 1.; //unit_cells[chosen_tiling].edge_signs[this_edge_id];
-
-        var other_edge_id = unit_cells[chosen_tiling].opposite_edge[this_edge_id];
-        var rref_vtx2 = unit_cells[chosen_tiling].ref_vtx[other_edge_id];
-
-        var other_edge_order_sign = -1.; //unit_cells[chosen_tiling].edge_signs[other_edge_id];
-        
-        //console.log(min_vtx1 + "," + rref_vtx1 + "," + rref_vtx2);
-
-        vertex_edge_id.push( this_edge_id );
-
-        var order1_index = find_vertex_order_index( min_vtx1 );
-        var rref_order_index = find_vertex_order_index( rref_vtx1 );
-        var rref2_order_index = find_vertex_order_index( rref_vtx2 );
-        
-        var order_diff = Math.abs(order1_index - rref_order_index) ;
-        if (order_diff == 0) order_diff = 1;
-
-        if (this_edge_order_sign == -1 && rref_order_index == 0 ) {
-            order_diff = vertex_order.length - 1 - order1_index;
-        }
-
-        var order2_index = rref2_order_index + other_edge_order_sign * order_diff;
-        if ( other_edge_order_sign == -1 && rref2_order_index == 0 ) {
-            order2_index = vertex_order.length - 1 - order_diff;
-        }
-
-        if ( this_edge_order_sign == -1 ) order2_index --;
-        
-        var dv = [ xpoint - grid_vertices[rref_vtx1*3], ypoint - grid_vertices[rref_vtx1*3+1]  ];
-
-        //console.log(dv);
-        //we may rotate dv if we are anti symmetric,  need to do
-
-        dv[0] -= glide_amount * this_edge_order_sign;
-        dv[0] = -dv[0] ;  //reflection
-        var new_pair = [ grid_vertices[rref_vtx2*3] + dv[0], grid_vertices[rref_vtx2*3+1] + dv[1] ];
-
-        vertex_edge_id.push( other_edge_id );
-
-     	  //grid_vertices.push( new_pair[0], new_pair[1], modified_vtx_depth );
-        grid_vertices.push( new_pair[0], new_pair[1], other_edge_id );  
-        //other_edge_id will be used in vertex shader to determine reflection
-
-        vertex_ids.push(max_vertex_id);
-        add_reference_triangle( new_pair[0], new_pair[1] );
-
-        //now get ready to remake the vertex_order array
-        new_max_index = (grid_vertices.length-6)/3;
-        var new_index1 = new_max_index;
-        var new_index2 = new_index1 + 1;
-
-        var oo1 = order1_index;
-        var oo2 = order2_index;
-        var index_to_push1 = new_index1;
-        var index_to_push2 = new_index2;
-
-        if ( order1_index > order2_index ) {
-           oo1 = order2_index;
-           oo2 = order1_index;
-           index_to_push1 = new_index2;
-           index_to_push2 = new_index1;
-        }
-
-        //if ( this_edge_order_sign == 1 && vertex_ids[min_vtx1] < vtx_max ) oo2 --;        
-      
-        new_vertex_order.length = 0;
-        new_vertex_pairs.length = 0;
- 
-        for (var i=0; i<oo1+1; i++) {
-            new_vertex_order.push( vertex_order[i] );
-            new_vertex_pairs.push( vertex_pairs[i] );
-        }
-        new_vertex_order.push(index_to_push1);
-        new_vertex_pairs.push(index_to_push2);
-        
-        for (var i=oo1+1; i<oo2+1; i++) {
-            new_vertex_order.push( vertex_order[i] );
-            new_vertex_pairs.push( vertex_pairs[i] );
-        }
-        new_vertex_order.push(index_to_push2);
-        new_vertex_pairs.push(index_to_push1);
-        
-        for (var i=oo2+1; i<vertex_order.length; i++) {
-            new_vertex_order.push( vertex_order[i] );
-            new_vertex_pairs.push( vertex_pairs[i] );
-        }
-
-        vertex_order.length = 0;
-        vertex_pairs.length = 0;
-        
-        vertex_order = [...new_vertex_order];
-        vertex_pairs = [...new_vertex_pairs];
-
-        if ( order1_index < order2_index ) {
-            push_new_texture_coord( oo1+1 );
-            push_new_texture_coord( oo2+2 );
-        }
-        else {
-            push_new_texture_coord( oo2+2 );
-            push_new_texture_coord( oo1+1 );
-        }
-
-        vertex_pair_history.push( [index_to_push1, index_to_push2] );
-        param_change = true;
-
-    }
-
-
     ////////////////////SQUARE_GLIDE///////////////////
-    else if ( !found_a_vertex && min_angle < straight_line_tol 
+
+    if ( !found_a_vertex && min_angle < straight_line_tol
          && symmetry_type == symmetry_types.OPPOSITE
          && (!translate || mousedown_counter == 0) &&
          chosen_tiling == cell_types.SQUARE_GLIDE &&
          (this_edge_id_test==0 || this_edge_id_test==4
           ||this_edge_id_test==1 || this_edge_id_test==3)  ) {
    
-
         turn_off_fill_mode();
-        //console.log("SQUARE_GLIDE logic");
 
         max_vertex_id ++;
         num_added_vertices ++;
@@ -3859,13 +3802,6 @@ function recompute_grid()  {
         var order_diff = Math.abs(rref_order_index - order1_index) ;
         if (order_diff == 0) order_diff = 1;
 
-        //console.log("pre order_diff " + order_diff);
-
-        //do we still need this?
-        //if (this_edge_order_sign == -1 && rref_order_index == 0 ) {
-        //    order_diff = vertex_order.length - 1 - order1_index;
-        //}
-
         var min_vtx_index = find_vertex_order_index(min_vtx1);
         var glide_vtx1_index = find_vertex_order_index(4);
         var glide_vtx2_index = find_vertex_order_index(1);
@@ -3881,8 +3817,6 @@ function recompute_grid()  {
            order_diff = -Math.abs(order_diff);
            if ( min_vtx1_pair != -1 && this_edge_id == 1 ) order_diff ++;
         }
-       
-        //console.log("post order_diff " + order_diff + "," + rref_vtx2);
 
         var order2_index = rref2_order_index + order_diff;
         
@@ -3966,6 +3900,7 @@ function recompute_grid()  {
     //SQUARE4 has 2 sides that have Opposite symmetry but the cell type is given 
     //Rotational Symmetry for those sides to work out properly, thus we need to check
     //if we are dealing with the sides with Opposite 
+
     else if ( !found_a_vertex && min_angle < straight_line_tol 
               && (symmetry_type == symmetry_types.OPPOSITE ||
                   (chosen_tiling == cell_types.SQUARE4 && 
@@ -3993,10 +3928,6 @@ function recompute_grid()  {
         var rref_vtx2 = unit_cells[chosen_tiling].ref_vtx[other_edge_id];
         var other_edge_order_sign = unit_cells[chosen_tiling].edge_signs[other_edge_id];
     
-        //console.log("edge ids " + this_edge_id + "," + other_edge_id);
-        //console.log("ref vtxs " + min_vtx1 + "," + rref_vtx1 + "," + rref_vtx2);
-     
-
         var this_edge_num = vertex_edge_num[min_vtx1];
 
         vertex_edge_id.push( this_edge_id );
@@ -4023,9 +3954,7 @@ function recompute_grid()  {
 
         if ( this_edge_order_sign == -1 ) order2_index --;
 
-      
         var dv = [ xpoint - grid_vertices[rref_vtx1*3], ypoint - grid_vertices[rref_vtx1*3+1]  ];
-   
     
         if (chosen_tiling == cell_types.SQUARE) {
             //add the adjustment amount since we may have tilted squares
@@ -4050,34 +3979,6 @@ function recompute_grid()  {
                 dv[1] += -square_tilt_adjust[1];             
             }
         }  
-
-        /*
-        if (chosen_tiling == cell_types.DIAMONDF) {
-            var theta = unit_cells[cell_types.DIAMONDF].edge_angle;
-            if (this_edge_id == 0) {
-                theta = - theta - theta;
-            }
-            else if (this_edge_id == 1) {
-                theta = theta + theta;
-            } 
-            else if (this_edge_id == 2) {
-                theta = - theta - theta;
-            }
-            else if (this_edge_id == 3) {
-                theta = theta + theta;
-            }
-
-            //console.log("theta " + this_edge_id + "," + theta);
-
-            var cosan = Math.cos(theta);
-            var sinan = Math.sin(theta);
-            var xtmp = cosan*dv[0] - sinan*dv[1];
-            var ytmp = sinan*dv[0] + cosan*dv[1];
-           
-            dv[0] = xtmp;
-            dv[1] = ytmp;
-        }
-        */
 
         //we may rotate dv if we are anti symmetric,  need to do
 
@@ -4157,7 +4058,6 @@ function recompute_grid()  {
         
     }
 
-
     // adjacent edges move together around one vertex
     else if ( !found_a_vertex && min_angle < straight_line_tol 
               && symmetry_type == symmetry_types.ROTATIONAL
@@ -4165,7 +4065,6 @@ function recompute_grid()  {
 
         //logic is different depending on whether the symmetry is pairs on opposite sides
         //or adjacent sides with rotational symmetry so we need 2 different functions
-
 
         //add another pair of vertices
         //we have to figure out how to add its pair given the edge order and edge ids
@@ -4206,7 +4105,6 @@ function recompute_grid()  {
         texture_coords.push(new_txt_x, new_txt_y);
         ///// end of Texture Coordinates Interpolation ////////////////////////////////
 
-
         //find the index of min_vtx1 in vertex_order (it will start diverging after we add vertices)
         var order_index = find_vertex_order_index(min_vtx1);
 
@@ -4227,8 +4125,6 @@ function recompute_grid()  {
         vertex_edge_id.push( this_edge_id );
         vertex_edge_num.push( this_edge_num );
 
-        //console.log("shitttt " + this_edge_id + "," + this_edge_num);
-
         // if we are clockwise relative to the ref vtx we have to add another 120 degrees for hexagon for example
         var dv =  [  xpoint - grid_vertices[rref_vtx*3] , ypoint - grid_vertices[rref_vtx*3+1] ];
         var theta = unit_cells[chosen_tiling].edge_angle;
@@ -4248,12 +4144,9 @@ function recompute_grid()  {
             //don't need to do anything with SQUARE4 or any other 180 degree rotations
         }
 
-        //console.log("this_edge_order",this_edge_order);
-
         var pair_dx =  Math.cos(theta) * dv[0] - Math.sin(theta) * dv[1];
         var pair_dy =  Math.sin(theta) * dv[0] + Math.cos(theta) * dv[1];
-        
-        
+          
         var rref_order_index = find_vertex_order_index(rref_vtx);
 
         var order_index_diff = Math.abs(order_index - rref_order_index);
@@ -4451,11 +4344,8 @@ function recompute_grid()  {
         }
     }
 
-    mousedown_counter ++;
-    
-    /////////////////////////// End of New Pair of Vertices //////////////////////////////////////////
-
 }
+
 
 function push_new_texture_coord(order_index) {
 
@@ -4834,6 +4724,147 @@ window.onerror = function(message, file, lineNumber) {
     console.log("there was a bad exception - big whoop dee doo");
     return false;
 }
+
+var vertexTexture;
+function create_vertexTexture(gl) {
+ 
+  //we used to blow up MacOS renders because we were sending the vertices through the uniform vector mechanism which has limits
+  //textures are virtually limitless!  long live the data texture
+
+  const ext = gl.getExtension('OES_texture_float');
+
+  gl.activeTexture(gl.TEXTURE6);
+
+  vertexTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, vertexTexture);
+
+  //gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+  const level = 0;
+  const internalFormat = gl.RGBA;
+  const width = vertex_order.length;
+  const height = 1;
+  const border = 0;
+  const srcFormat = gl.RGBA;
+  const srcType = gl.FLOAT;
+
+  //const pixel = new Float32Array([0, 0, 255, 255]);  // opaque blue
+
+  var data = [];
+  for (var i=0; i<vertex_order.length; i++) {
+      var ii = vertex_order[i];
+      data.push( grid_vertices[ii*3], grid_vertices[ii*3+1], 0, 0 );       
+  }
+  data.push( 1e9, 1e9, 1e9, 1e9 );
+
+  gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+                width, height, border, srcFormat, srcType,
+                new Float32Array(data) );
+
+  //make sure to turn off filtering so nobody screws with our data
+    
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+
+}
+
+    function gvector( ii ) {
+    //specifically only uses grid_vertices as a data source
+        return ( { x: grid_vertices[ii*3], y: grid_vertices[ii*3+1] } );
+    }
+  
+    function vadd( v1, v2, c1, c2 ) {
+        return ( {x: c1*v1.x + c2*v2.x, y: c1*v1.y + c2*v2.y} );
+    }
+
+    var shrunk;
+    function stl_file(shrink) { 
+       //write out an ASCII STL file instead of the usual parameters dump
+
+        //to write out a new array that has the grid_vertices in order counter clockwise
+        //vertex_order gives this index
+       
+        shrunk = [...grid_vertices];
+        //var shrink = .003;
+
+        for (var i=0; i<(vertex_order.length-1); i++) {
+
+            ii = vertex_order[i]; 
+
+            //the original set of vertices does not leave enough slack for pieces with lots of nooks and crannies
+            //to fit with each other in real life.  we need to shrink all vertices inward along the normal of
+            //each line segment first
+
+            jj = vertex_order[ (i+1)%(vertex_order.length-1) ]; // circle back to 0 and 1 when we get to the end
+            kk = vertex_order[ (i+2)%(vertex_order.length-1) ]; // circle back to 0 and 1 when we get to the end
+            
+            var v1=gvector(ii), v2=gvector(jj), v3=gvector(kk);
+            
+            var l1 = vadd( v2, v1, 1, -1 );
+            var l2 = vadd( v3, v2, 1, -1 );
+
+            var nl1 = vnormalize(l1);
+            var nl2 = vnormalize(l2);    
+
+            //we need the 2d perpendicular vector which is -y, x
+            var norm1 = { x: -nl1.y, y: nl1.x };
+            var norm2 = { x: -nl2.y, y: nl2.x };
+
+
+
+            // the points displaced inward in the direction of the 2d normal vector
+            var p1 = vadd( v1, l1 , 1, .5 );  //midpoint of line segment from v1 to v2
+            var orig_p1 = p1;
+              
+            p1 = vadd( orig_p1, norm1, 1, shrink);
+
+            var p2 = vadd( v2, l2, 1, .5); //midpoint of line segment from v3 to v2 
+            var orig_p2 = p2;
+
+            p2 = vadd( orig_p2, norm2 , 1, shrink );
+
+            //all normals point inward if we traverse pairs of vertices in order counterclockwise
+
+            //if ( !are_we_inside_the_god_damn_polygon(p2.x,p2.y) )  //i thought we needed this but we don't
+            //    p2 = vadd( orig_p2, norm1 , 1, -shrink );
+
+            //basically finding the intersection of 2 lines here, except using vector notation
+            //so direction from starting points matters
+
+            //we get lambda from solving for the intersection of p1 + lambda*nl1 = p2 - lambda2*nl2
+ 
+            var denominator = (nl2.y*nl1.x-nl1.y*nl2.x);
+            var eps = 1e-1;  //strange - setting this to 1 causes hexagons to rotate
+            var maxLambda = .2;
+
+            if ( Math.abs(denominator) < eps ) denominator = Math.sign(denominator) * eps;
+  
+            var lambda = ( nl2.x*(p1.y-p2.y) + nl2.y*(p2.x-p1.x) ) / denominator;
+
+            if ( Math.abs(lambda) > maxLambda ) lambda = Math.sign(lambda) * maxLambda;
+
+            //p1 + lambda*nl1 is the point of intersection which is the new vertex
+            var intersect = vadd( p1, nl1, 1, lambda );
+
+            //replace the old vertex with the one at the intersection
+            shrunk[jj*3] = intersect.x;
+            shrunk[jj*3+1] = intersect.y;
+
+            var check_norm = vadd( norm1, norm2, 1., 1. );
+            if ( Math.abs(check_norm.x) < 1e-1 && Math.abs(check_norm.y) < 1e-1 ) {
+                console.log( "equal and opposite normals here: ", jj, kk  );
+                //shrunk[jj*3] = v1.x; shrunk[jj*3+1] = v1.y; 
+            }
+                   
+        }
+
+
+    }
+
+
 </script>
 
 </html>
