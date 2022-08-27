@@ -1083,7 +1083,7 @@
         texture_freehand = gl.createTexture();
         gl.activeTexture(gl.TEXTURE4);
         gl.bindTexture(gl.TEXTURE_2D, texture_freehand);
-        //texture_parameters();
+        texture_parameters();
         
         framebuffer_freehand = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer_freehand);
@@ -1769,7 +1769,6 @@
         }
 
         gl.clear(gl.COLOR_BUFFER_BIT| gl.DEPTH_BUFFER_BIT);       
-        //gl.clear(gl.COLOR_BUFFER_BIT);
 
         //if the same pixel is colored more than once it will be blended according to blendFunc arguments -could be useful
         //gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
