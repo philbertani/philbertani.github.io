@@ -1545,6 +1545,7 @@
 
         unit_cells[cell_types.HEXAGON].tile_map = hex_tiling_map;
         unit_cells[cell_types.HEXAGON2].tile_map = hex2_tiling_map; //opposite edges, no rotation
+
         //unit_cells[cell_types.HEXAGON].center_tile = [3,3];
 
     }
@@ -4781,7 +4782,8 @@ function create_vertexTexture(gl) {
 
     var shrunk;
     function stl_file(shrink) { 
-       //write out an ASCII STL file instead of the usual parameters dump
+        //this function is now being used to shrink or expand the unit cell properly along segment normals
+        //but it can still be used to create an STL file for 3d printing
 
         //to write out a new array that has the grid_vertices in order counter clockwise
         //vertex_order gives this index
@@ -4812,8 +4814,6 @@ function create_vertexTexture(gl) {
             var norm1 = { x: -nl1.y, y: nl1.x };
             var norm2 = { x: -nl2.y, y: nl2.x };
 
-
-
             // the points displaced inward in the direction of the 2d normal vector
             var p1 = vadd( v1, l1 , 1, .5 );  //midpoint of line segment from v1 to v2
             var orig_p1 = p1;
@@ -4825,6 +4825,9 @@ function create_vertexTexture(gl) {
 
             p2 = vadd( orig_p2, norm2 , 1, shrink );
 
+ 
+            //console.log("shrinking",p1,p2);
+
             //all normals point inward if we traverse pairs of vertices in order counterclockwise
 
             //if ( !are_we_inside_the_god_damn_polygon(p2.x,p2.y) )  //i thought we needed this but we don't
@@ -4835,28 +4838,35 @@ function create_vertexTexture(gl) {
 
             //we get lambda from solving for the intersection of p1 + lambda*nl1 = p2 - lambda2*nl2
  
-            var denominator = (nl2.y*nl1.x-nl1.y*nl2.x);
-            var eps = 1e-1;  //strange - setting this to 1 causes hexagons to rotate
+            var denominator = nl2.y*nl1.x-nl1.y*nl2.x;
+            var eps = 1e-2;  //strange - setting this to 1 causes hexagons to rotate
             var maxLambda = .2;
 
-            if ( Math.abs(denominator) < eps ) denominator = Math.sign(denominator) * eps;
+            //console.log( "shitballs",nl1,nl2,denominator, Math.sign(denominator) );
+
+            if ( Math.abs(denominator) < 1e-8  ) { denominator = eps; }
+            else if ( Math.abs(denominator) < eps ) denominator = Math.sign(denominator) * eps;
   
             var lambda = ( nl2.x*(p1.y-p2.y) + nl2.y*(p2.x-p1.x) ) / denominator;
 
             if ( Math.abs(lambda) > maxLambda ) lambda = Math.sign(lambda) * maxLambda;
 
+            var check_norm = vadd( norm1, norm2, 1., 1. );
+            if ( Math.abs(check_norm.x) < 1e-1 && Math.abs(check_norm.y) < 1e-1 ) {
+                console.log( "equal and opposite normals here: ", jj, kk  );
+                //shrunk[jj*3] = v1.x; shrunk[jj*3+1] = v1.y;
+                lambda = 0; 
+                //when vertices overlap with overlapping line segments - this causes lots of problems
+            }
+
             //p1 + lambda*nl1 is the point of intersection which is the new vertex
             var intersect = vadd( p1, nl1, 1, lambda );
+
 
             //replace the old vertex with the one at the intersection
             shrunk[jj*3] = intersect.x;
             shrunk[jj*3+1] = intersect.y;
 
-            var check_norm = vadd( norm1, norm2, 1., 1. );
-            if ( Math.abs(check_norm.x) < 1e-1 && Math.abs(check_norm.y) < 1e-1 ) {
-                console.log( "equal and opposite normals here: ", jj, kk  );
-                //shrunk[jj*3] = v1.x; shrunk[jj*3+1] = v1.y; 
-            }
                    
         }
 
