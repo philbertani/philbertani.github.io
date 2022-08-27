@@ -1030,7 +1030,7 @@
         tex_size_mult = Math.min(tex_size_mult, 2.);
         document.getElementById("tex_size_mult").value = tex_size_mult;
  
-        ref_sz = init_ref_sz/(1.+tex_size_mult*.5);
+        ref_sz = init_ref_sz/(1.+ Math.max(tex_size_mult,-1)*.5);
         console.log(ref_sz,"ref size");
         adjusted_texture = true;
  
