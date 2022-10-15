@@ -1,0 +1,171 @@
+<html>
+<head>
+<style>
+#numpad { width:380px;}
+#output { font-size:32px;}
+#showLetter { font-size:48px;}
+</style>
+</head>
+
+<body onload='displayNumPad()'>
+
+<div>
+Press on Keypad to generate old fashioned text <br>
+Long Press for Numbers <br>
+Refresh Page to Reset <br><br>
+</div>
+
+<div id='numpad'>
+</div>
+
+<div id='showLetter'>Letter:</div>
+
+<div id='output'>
+Texting Output: 
+</div>
+
+</body>
+
+
+<script>
+"use strict"
+
+function makeKeyCounts () {
+
+    //long winded amount of code to generate lookup tables
+    //for an old cell phone keypad, somewhat generalizeable though
+    const aOffset=65; //A=65
+    let numP = {}; //number of presses per numeric key to get alpha key
+    let invP = {}; //the numeric key pressed per alpha key
+    let count = 0, count2 = 0;
+    let whichKey = 2;
+    for (let i=0;i<26;i++) {
+        const letter = String.fromCharCode(i+aOffset);
+        numP[letter] = count%3 + 1;
+        count ++; count2 ++;
+        //only 2 special cases: S and Z
+        if ('SZ'.includes(letter))
+            {numP[letter]=4; count=0;
+            count2--; whichKey--;}
+
+        invP[letter] = whichKey;
+        if (count2%3==0) whichKey ++;
+    }
+    //no reason not to include the special characters
+    numP[' '] = 1; numP['*'] = 1; numP['#'] = 1;
+
+    //let's just deal with numbers as strings
+    const zeroOffset=48; //0=48
+    for (let i=0; i<10; i++) {
+        const letter = String.fromCharCode(i+zeroOffset);
+        numP[letter] = 1;
+    }
+
+    let lettersByKey = {};
+    const kk = Object.keys(invP);
+    for (let i=0; i<kk.length; i++) {
+        const [letter,keynum] = [ kk[i],invP[kk[i]] ];
+        if ( !lettersByKey[keynum] ) lettersByKey[keynum]=[];
+        lettersByKey[keynum].push(letter);
+    }
+    lettersByKey['0'] = ['\u00A0'];
+    //if we want multiple spaces in html we need the &nbsp whitespace
+    //character which is \u00A0 in hex  
+    lettersByKey['*'] = ['*'];  
+    lettersByKey['#'] = ['#'];
+    lettersByKey['1'] = ['1'];
+
+    return [numP, invP, lettersByKey];
+}
+
+const presses = (strIn) => {
+    let numP = 0;
+    const strUC = strIn.toUpperCase();
+    for (let i=0;  i<strUC.length; i++) {
+        //?? nullish coalescing does not exist here so I use ||
+        //to fall back if for some reason we get a strange character
+        //not in the lookup table
+        numP += keyP[strUC[i]] ?? 0;
+    }
+    return numP;
+}
+
+
+
+function checkPresses() {
+    //console.log( np.numPresses );
+    const ln = np.presses.length-1;
+    const timeNow = Date.now();
+    if ( timeNow-np.timeLast > 500 && np.numPresses > 0 )
+    {
+        if (timeNow - np.mouseDownTime > 1000 ) 
+            np.textOutput.textContent += np.presses[ln];
+        else 
+            np.textOutput.textContent += np.latestLetter;
+        console.log(np.presses);
+        np.numPresses = 0;
+        np.presses.length = 0;
+    }
+}
+
+function addKeyPress( numpadKey, time ) {
+    const numL = np.lettersByKey[numpadKey].length;
+    const letter = np.lettersByKey[numpadKey][np.numPresses%numL];
+    np.showLetter.textContent = 'Letter: ' + letter;
+    np.latestLetter = letter;
+    np.presses.push(numpadKey);
+    np.numPresses ++;
+    np.timeLast = time;
+}
+
+function displayNumPad() {
+
+    let np={};
+    np.tables = makeKeyCounts();
+    np.lettersByKey = np.tables[2];
+    np.numPresses = 0; np.timeLast = Date.now();
+    np.presses = []; np.showLetter = document.getElementById('showLetter');
+    np.textOutput = document.getElementById('output');  
+    window.np = np;
+
+    const numpadKeys='123456789*0#';
+    const numpad = document.getElementById('numpad');
+
+    //generate vanilla html buttons dynamically here
+    for (let i=0; i<numpadKeys.length; i++) {
+        var b = document.createElement('input');
+        b.type='button';
+        b.id =numpadKeys[i];
+        let buttonText = numpadKeys[i];
+        buttonText += '\n';
+        if (np.lettersByKey[numpadKeys[i]]) {
+            buttonText += np.lettersByKey[numpadKeys[i]].join('');
+        } 
+        else { buttonText += ' '; }  //trick to get all buttons to match in size
+
+        if ( numpadKeys[i] === '0' ) buttonText = '0\n_'; //ugly
+
+        b.value = buttonText;
+        b.setAttribute('style','font-size:32px; width:120px; height:80px');  
+        b.onclick = function() { addKeyPress( numpadKeys[i], Date.now() ); };        
+        numpad.appendChild(b);
+    }
+  
+    //keep track of mousedown times so we can distinguish letters from numbers
+    window.addEventListener('mousedown', e=> {
+        np.mouseDown = true;
+        np.mouseDownTime = Date.now();
+    });
+
+    window.addEventListener('mouseup', e=> {
+        np.mouseDown = false;
+        np.mouseUpTime = Date.now();
+    });
+
+    //we need to detect how long it has been since no keys have been pressed
+    setInterval( checkPresses, 200 );  
+}
+
+
+</script>
+</html>
