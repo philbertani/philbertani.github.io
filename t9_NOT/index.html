@@ -79,18 +79,15 @@ function makeKeyCounts () {
 }
 
 const presses = (strIn) => {
+    //this function solves last question of Assessment 2
     let numP = 0;
     const strUC = strIn.toUpperCase();
     for (let i=0;  i<strUC.length; i++) {
-        //?? nullish coalescing does not exist here so I use ||
-        //to fall back if for some reason we get a strange character
-        //not in the lookup table
+        // ?? nullish coallescing operator - superior to ||
         numP += keyP[strUC[i]] ?? 0;
     }
     return numP;
 }
-
-
 
 function checkPresses() {
     //console.log( np.numPresses );
