@@ -102,29 +102,40 @@ function checkPresses() {
             np.textOutput.textContent += np.presses[ln];
         else 
             np.textOutput.textContent += np.latestLetter;
-        console.log(np.presses);
+        //console.log(np.presses);
         np.numPresses = 0;
-        np.presses.length = 0;
+        np.presses.length = 0; np.presses.push(np.init); //dummy value
     }
 }
 
 function addKeyPress( numpadKey, time ) {
     const numL = np.lettersByKey[numpadKey].length;
-    const letter = np.lettersByKey[numpadKey][np.numPresses%numL];
+    let letter = np.lettersByKey[numpadKey][np.numPresses%numL];
+    np.presses.push(numpadKey); 
+    np.numPresses ++;
+    const numP = np.presses.length;
+    if ( np.presses[np.numPresses] !== np.presses[np.numPresses-1]
+         && np.presses[np.numPresses-1] !== np.init ) {
+        np.presses.length = 0;
+        np.presses.push(np.init);
+        np.presses.push(numpadKey);
+        np.numPresses = 0;
+        np.textOutput.textContent += np.latestLetter;
+        letter = np.lettersByKey[numpadKey][np.numPresses%numL];
+        np.numPresses = 1;
+    }
     np.showLetter.textContent = 'Letter: ' + letter;
     np.latestLetter = letter;
-    np.presses.push(numpadKey);
-    np.numPresses ++;
     np.timeLast = time;
 }
 
 function displayNumPad() {
 
-    let np={};
+    let np={}; np.init='666';
     np.tables = makeKeyCounts();
     np.lettersByKey = np.tables[2];
     np.numPresses = 0; np.timeLast = Date.now();
-    np.presses = []; np.showLetter = document.getElementById('showLetter');
+    np.presses = [np.init]; np.showLetter = document.getElementById('showLetter');
     np.textOutput = document.getElementById('output');  
     window.np = np;
 
