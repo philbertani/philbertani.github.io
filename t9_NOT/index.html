@@ -1,9 +1,9 @@
 <html>
 <head>
 <style>
-#numpad { width:380px;}
-#output { font-size:32px;}
-#showLetter { font-size:48px;}
+#numpad { width:380px; }
+#output { font-size:32px; }
+#showLetter { font-size:48px; }
 </style>
 </head>
 
@@ -79,15 +79,18 @@ function makeKeyCounts () {
 }
 
 const presses = (strIn) => {
-    //this function solves last question of Assessment 2
     let numP = 0;
     const strUC = strIn.toUpperCase();
     for (let i=0;  i<strUC.length; i++) {
-        // ?? nullish coallescing operator - superior to ||
+        //?? nullish coalescing does not exist here so I use ||
+        //to fall back if for some reason we get a strange character
+        //not in the lookup table
         numP += keyP[strUC[i]] ?? 0;
     }
     return numP;
 }
+
+
 
 function checkPresses() {
     //console.log( np.numPresses );
@@ -133,7 +136,14 @@ function displayNumPad() {
     np.lettersByKey = np.tables[2];
     np.numPresses = 0; np.timeLast = Date.now();
     np.presses = [np.init]; np.showLetter = document.getElementById('showLetter');
-    np.textOutput = document.getElementById('output');  
+    np.textOutput = document.getElementById('output');
+    np.buttons = []; np.screenMult = .4;
+
+    np.mobile = false;
+    if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)){
+        np.mobile = true; np.screenMult = .96;
+    }
+
     window.np = np;
 
     const numpadKeys='123456789*0#';
@@ -157,6 +167,7 @@ function displayNumPad() {
         b.setAttribute('style','font-size:32px; width:120px; height:80px');  
         b.onclick = function() { addKeyPress( numpadKeys[i], Date.now() ); };        
         numpad.appendChild(b);
+
     }
   
     //keep track of mousedown times so we can distinguish letters from numbers
@@ -170,8 +181,31 @@ function displayNumPad() {
         np.mouseUpTime = Date.now();
     });
 
+    window.onresize = windowResize;  //window resize listener
+
+    windowResize();  //call at startup for consistency sake
+
     //we need to detect how long it has been since no keys have been pressed
     setInterval( checkPresses, 200 );  
+}
+
+
+function windowResize(e) {
+
+        //console.log(window.innerWidth, window.innerHeight);
+        let numpadDiv = document.getElementById('numpad');
+        const dw = Math.trunc(window.innerWidth*np.screenMult);
+        const bw = Math.trunc( dw / 3.2 );
+        const bh = Math.trunc( bw * .8);
+        numpadDiv.setAttribute('style',`width:${dw};`);
+          
+        let buttons = numpadDiv.children;
+        //the only children of the div are the buttons so just loop through
+        for (let i=0; i<buttons.length; i++) {
+            let button = buttons[i];
+            button.setAttribute('style',`font-size:32px; width:${bw}px; height:${bh}px;`); 
+        }
+       
 }
 
 
