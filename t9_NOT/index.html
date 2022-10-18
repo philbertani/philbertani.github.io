@@ -1,17 +1,24 @@
 <html>
 <head>
 <style>
-#numpad { width:380px; }
-#output { font-size:32px; }
-#showLetter { font-size:48px; }
+#numpad { width:380px; position:absolute; top:120px;}
+#output { font-size:30px; position:absolute; left:500px; top:200px;
+          border-width:10px; border-radius:25px; border-color:#FF00FF; width: 390px;}
+#showLetter { font-size:48px; position:absolute; left:500px; top:120px;
+              border-width:10px; border-style:solid; width:370px; 
+              border-radius:20px; border-color:#FFAA00;}
+.buttonClass01 {transition-duration: .4s; font-size:26px; 
+                border:6px solid; border-radius:20px; border-color:#FFAA00;}
+.buttonClass01:hover { background-color: #FF00FF; color: white;}
 </style>
 </head>
 
 <body onload='displayNumPad()'>
 
-<div>
+<div style="font-size:20px; max-height:105px; min-width:370px; overflow-y:auto;">
 Press on Keypad to generate old fashioned text <br>
-Long Press for Numbers, Short Press 0 for Space <br>
+Long Press for Numbers <br>
+Short Press 0 for Space, Short Press # for Back Space <br>
 Refresh Page to Reset <br><br>
 </div>
 
@@ -20,8 +27,9 @@ Refresh Page to Reset <br><br>
 
 <div id='showLetter'>Letter:</div>
 
-<div id='output'>
-Texting Output: 
+<div id='o1'>
+  <textarea id="output" rows="4" cols="20">
+  </textarea>
 </div>
 
 </body>
@@ -90,67 +98,124 @@ const presses = (strIn) => {
     return numP;
 }
 
-
-
 function checkPresses() {
-    //console.log( np.numPresses );
+
+    //document.getElementById("textarea").scrollTop = document.getElementById("textarea").scrollHeight 
+
     const ln = np.presses.length-1;
     const timeNow = Date.now();
-    if ( timeNow-np.timeLast > 500 && np.numPresses > 0 )
+
+    if ( timeNow - np.mouseDownTime > np.LONGPRESS && np.mouseDown) {
+        np.showLetter.textContent = 'Numeric Keypad';
+        //we don't have access to which button because the 
+        //button is not pushed until we FINISH the mouse click
+        //mouse down + mouse up
+    }
+
+    if ( timeNow-np.timeLast > 400 && np.numPresses > 0 )
     {
-        if (timeNow - np.mouseDownTime > 1000 ) 
-            np.textOutput.textContent += np.presses[ln];
-        else 
-            np.textOutput.textContent += np.latestLetter;
-        //console.log(np.presses);
-        np.numPresses = 0;
-        np.presses.length = 0; np.presses.push(np.init); //dummy value
+        if (timeNow - np.mouseDownTime > np.LONGPRESS ) {
+            np.textArray.push(np.presses[ln]);
+        }
+        else {
+            if ( np.presses[ln] === np.BACKSPACE ) {
+                np.textArray.pop();  //pop() is smart enough not to take the array index negative
+            }
+            else {
+                np.textArray.push(np.latestLetter);
+            }           
+        }
+
+        np.textOutput.textContent = np.textArray.join('')+'_';
+
+        resetPresses();
+
+        np.showLetter.textContent = 'Letter:';
+  
+        checkScroll();
+
     }
 }
 
+function resetPresses() {
+        np.numPresses = 0;
+        np.presses.length = 0;
+        np.presses.push(np.init); //dummy value
+}
+
+function checkScroll() {
+        if (np.textArray.length > 20 ) {
+            np.lineLength ++;
+            if ( np.lineLength%20 === 0 ) np.textOutput.scrollTop += 500;
+        }
+}
+
 function addKeyPress( numpadKey, time ) {
+
+    np.textOutput.scrollTop += 500;  //make sure we always scroll to bottom of textarea
+
     const numL = np.lettersByKey[numpadKey].length;
     let letter = np.lettersByKey[numpadKey][np.numPresses%numL];
     np.presses.push(numpadKey); 
     np.numPresses ++;
     const numP = np.presses.length;
-    if ( np.presses[np.numPresses] !== np.presses[np.numPresses-1]
+
+    const dt = time - np.mouseDownTime;
+
+    if ( numpadKey === np.BACKSPACE && dt <= np.LONGPRESS ) {
+        np.textArray.pop();
+        np.textOutput.textContent = np.textArray.join('') + '_';
+        resetPresses();
+        letter = 'Delete';
+    }
+    else if ( np.presses[np.numPresses] !== np.presses[np.numPresses-1]
          && np.presses[np.numPresses-1] !== np.init ) {
-        np.presses.length = 0;
-        np.presses.push(np.init);
+
+        resetPresses();
+
         np.presses.push(numpadKey);
-        np.numPresses = 0;
-        np.textOutput.textContent += np.latestLetter;
+ 
+        np.textArray.push(np.latestLetter);
+        np.textOutput.textContent  = np.textArray.join('') + '_';
         letter = np.lettersByKey[numpadKey][np.numPresses%numL];
         np.numPresses = 1;
+
+        checkScroll();
+
     }
-    np.showLetter.textContent = 'Letter: ' + letter;
+
     np.latestLetter = letter;
     np.timeLast = time;
+
+    if ( letter === '\u00A0' ) letter = 'Space';  //remember it is nbsp type of space
+    np.showLetter.textContent = 'Letter: ' + letter;
+
 }
 
 function displayNumPad() {
 
-    let np={}; np.init='666';
+    let np={}; np.init='666'; np.BACKSPACE = '#'; np.LONGPRESS=700;
     np.tables = makeKeyCounts();
     np.lettersByKey = np.tables[2];
     np.numPresses = 0; np.timeLast = Date.now();
     np.presses = [np.init]; np.showLetter = document.getElementById('showLetter');
     np.textOutput = document.getElementById('output');
-    np.buttons = []; np.screenMult = .4;
-
+    np.buttons = []; np.screenMult = .4; np.textArray = [];
+    np.lineLength = 0;
+    
     np.mobile = false;
     if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)){
         np.mobile = true; np.screenMult = .96;
     }
 
-    window.np = np;
+    window.np = np;  //make np global
 
     const numpadKeys='123456789*0#';
     const numpad = document.getElementById('numpad');
 
     //generate vanilla html buttons dynamically here
     for (let i=0; i<numpadKeys.length; i++) {
+
         var b = document.createElement('input');
         b.type='button';
         b.id =numpadKeys[i];
@@ -162,21 +227,24 @@ function displayNumPad() {
         else { buttonText += ' '; }  //trick to get all buttons to match in size
 
         if ( numpadKeys[i] === '0' ) buttonText = '0\n_'; //ugly
+        if ( numpadKeys[i] === '#' ) buttonText = '#\n<'; //uglier
 
-        b.value = buttonText;
-        b.setAttribute('style','font-size:32px; width:120px; height:80px');  
+        b.value = buttonText; 
+        b.setAttribute('class','buttonClass01');
+
         b.onclick = function() { addKeyPress( numpadKeys[i], Date.now() ); };        
         numpad.appendChild(b);
 
     }
   
     //keep track of mousedown times so we can distinguish letters from numbers
-    window.addEventListener('mousedown', e=> {
+    //also we only want mousedown events inside the numpad div
+    numpad.addEventListener('mousedown', e=> {
         np.mouseDown = true;
         np.mouseDownTime = Date.now();
     });
 
-    window.addEventListener('mouseup', e=> {
+    numpad.addEventListener('mouseup', e=> {
         np.mouseDown = false;
         np.mouseUpTime = Date.now();
     });
@@ -186,7 +254,7 @@ function displayNumPad() {
     windowResize();  //call at startup for consistency sake
 
     //we need to detect how long it has been since no keys have been pressed
-    setInterval( checkPresses, 200 );  
+    setInterval( checkPresses, 100 );  
 }
 
 
@@ -194,16 +262,33 @@ function windowResize(e) {
 
         //console.log(window.innerWidth, window.innerHeight);
         let numpadDiv = document.getElementById('numpad');
-        const dw = Math.trunc(window.innerWidth*np.screenMult);
-        const bw = Math.trunc( dw / 3.2 );
-        const bh = Math.trunc( bw * .8);
-        numpadDiv.setAttribute('style',`width:${dw};`);
+        let outDiv = document.getElementById('output');
+        let showDiv = document.getElementById('showLetter');
+
+        let dw = window.innerWidth*np.screenMult;
+        const bw = Math.max(120, Math.trunc( dw / 3.2 ) );
+        const bh = Math.trunc( bw * .7);
+        dw = bw * 3.1;
+
+        //probably keep an array of divs and loop through since
+        //new style is same for all
+        showDiv.setAttribute('style',`left:${dw+10}`);
+        outDiv.setAttribute('style',`left:${dw+10}`);        
+
+        numpadDiv.setAttribute('style',`width:${dw}; height:${bh}`);
           
+        if ( 2*dw > window.innerWidth ) {
+            const top = bh*4 + 10;
+            const styleString = `position:relative; left: 0px; top:${top}px;`;
+            showDiv.setAttribute('style', styleString);
+            outDiv.setAttribute('style', styleString);
+        }
+
         let buttons = numpadDiv.children;
         //the only children of the div are the buttons so just loop through
         for (let i=0; i<buttons.length; i++) {
             let button = buttons[i];
-            button.setAttribute('style',`font-size:32px; width:${bw}px; height:${bh}px;`); 
+            button.setAttribute('style',`width:${bw}px; height:${bh}px;`); 
         }
        
 }
