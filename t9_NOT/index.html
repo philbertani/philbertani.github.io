@@ -242,6 +242,7 @@ function displayNumPad() {
     numpad.addEventListener('mousedown', e=> {
         np.mouseDown = true;
         np.mouseDownTime = Date.now();
+        e.preventDefault();
     });
 
     numpad.addEventListener('mouseup', e=> {
