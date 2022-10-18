@@ -242,7 +242,7 @@ function displayNumPad() {
     numpad.addEventListener('mousedown', e=> {
         np.mouseDown = true;
         np.mouseDownTime = Date.now();
-        e.preventDefault();
+        //e.preventDefault();
     });
 
     numpad.addEventListener('mouseup', e=> {
@@ -250,10 +250,12 @@ function displayNumPad() {
         np.mouseUpTime = Date.now();
     });
 
+    /*
     numpad.addEventListener('touchstart', e=> {
         e.preventDefault();       
     });
-                            
+    */
+    
     window.onresize = windowResize;  //window resize listener
 
     windowResize();  //call at startup for consistency sake
