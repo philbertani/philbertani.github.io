@@ -231,7 +231,8 @@ function displayNumPad() {
 
         b.value = buttonText; 
         b.setAttribute('class','buttonClass01');
-
+ 
+        b.addEventListener('touchend', e=>this.click() );
         b.onclick = function() { addKeyPress( numpadKeys[i], Date.now() ); };        
         numpad.appendChild(b);
 
