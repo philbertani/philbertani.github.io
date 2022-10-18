@@ -19,7 +19,7 @@
 Press on Keypad to generate old fashioned text <br>
 Long Press for Numbers <br>
 Short Press 0 for Space, Short Press # for Back Space <br>
-Refresh Page to Reset * <br><br>
+Refresh Page to Reset <br><br>
 </div>
 
 <div id='numpad'>
@@ -256,11 +256,13 @@ function displayNumPad() {
         np.touchDown = true;
         np.touchDownTime = Date.now();
         np.mouseDownTime = Date.now();
+        np.mouseDown = true;
     });
    
     numpad.addEventListener('touchend', e=> {
         np.touchDown = false;
         np.touchEndTime = Date.now();
+        np.mouseDown = false;
         checkPresses();
     });
     
