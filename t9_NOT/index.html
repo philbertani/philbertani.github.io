@@ -44,7 +44,7 @@
 
       .buttonClass01Mobile {
         transition-duration: 0.1s;
-        font-size: 40px;
+        font-size: 48px;
         border: 6px solid;
         border-radius: 30px;
         border-color: #ffaa00;
@@ -66,7 +66,7 @@
       Press on Keypad to generate old fashioned text <br />
       Long Press for Numbers <br />
       Short Press 0 for Space, Short Press # for Back Space <br />
-      Refresh Page to Reset <br /><br />
+      Refresh Page to Reset *<br /><br />
     </div>
 
     <div id="numpad"></div>
@@ -251,7 +251,7 @@
         )
       ) {
         np.mobile = true;
-        np.screenMult = 0.99;
+        np.screenMult = 1.;  //unless landscape...
       }
 
       window.np = np; //make np available globally
@@ -306,6 +306,7 @@
         });
 
         np.info.style.fontSize = "30px";
+        np.textOutput.style.fontSize = "36px";
 
       }
       else {
@@ -381,7 +382,7 @@
       let dw = window.innerWidth * np.screenMult;
       const bw = Math.max(120, Math.trunc(dw / 3.2));
       const bh = Math.trunc(bw * 0.7);
-      dw = bw * 3.1;
+      dw = Math.trunc ( bw * 3 );
 
       //probably keep an array of divs and loop through since
       //new style is same for all
@@ -389,10 +390,10 @@
       //showDiv.setAttribute("style", left);
       outDiv.setAttribute("style", left);
       //showDiv.style.width = Math.trunc(.6*dw);
-      outDiv.style.width = dw;
+      outDiv.style.width = dw + 'px';
 
       //where to store 200?
-      showDiv.style.width = "200px";
+      showDiv.style.width = '200px';
       showDiv.style.left =  Math.trunc( (dw - 200)/2 ) + 'px';
  
       numpadDiv.setAttribute("style", `width:${dw}; height:${bh}`);
