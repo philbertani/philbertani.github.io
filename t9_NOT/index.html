@@ -41,31 +41,29 @@
 
       .buttonClass01Mobile {
         transition-duration: 0.1s;
-        font-size: 36px;
+        font-size: 40px;
         border: 6px solid;
         border-radius: 30px;
         border-color: #ffaa00;
         background-color: #ffff00;
         color: #000000;
       }
-
+      .info {
+        font-size: 20px;
+        max-height: 105px;
+        min-width: 370px;
+        overflow-y: auto;
+      }
 
     </style>
   </head>
 
   <body onload="displayNumPad()">
-    <div
-      style="
-        font-size: 20px;
-        max-height: 105px;
-        min-width: 370px;
-        overflow-y: auto;
-      "
-    >
+    <div id="info" class="info">
       Press on Keypad to generate old fashioned text <br />
       Long Press for Numbers <br />
       Short Press 0 for Space, Short Press # for Back Space <br />
-      Refresh Page to Reset <br /><br />
+      Refresh Page to Reset *<br /><br />
     </div>
 
     <div id="numpad"></div>
@@ -151,10 +149,11 @@
 
       const ln = np.presses.length - 1;
       const timeNow = Date.now();
+      const clickTime = timeNow - np.mouseDownTime;
 
-      if (np.mouseDown) np.clickTime = timeNow - np.mouseDownTime;
+      if (np.mouseDown) np.clickTime = clickTime;
 
-      if (timeNow - np.mouseDownTime > np.LONGPRESS && np.mouseDown) {
+      if (clickTime > np.LONGPRESS && np.mouseDown) {
         np.showLetter.textContent = "Num: " + np.presses[ln];
         document.getElementById(np.keyIdPrefix+np.presses[ln]).style.backgroundColor="#00FFFF";
       }
@@ -235,6 +234,7 @@
       np.numPresses = 0;
       np.timeLast = Date.now();
       np.presses = [np.init];
+      np.info = document.getElementById("info");
       np.showLetter = document.getElementById("showLetter");
       np.textOutput = document.getElementById("output");
       np.buttons = [];
@@ -274,10 +274,6 @@
 
         b.value = buttonText;
 
-        if (np.mobile) {
-
-        }
-
         if ( np.mobile ) {     
           b.addEventListener("touchstart", (e) => {
             mouseDown(e, numpadKeys[i]);
@@ -305,6 +301,9 @@
           if (np.mouseDown && np.mouseDownTarget) mouseUp(np.mouseDownTarget);
           np.mouseDownTarget = null;
         });
+
+        np.info.style.fontSize = "36px";
+
       }
       else {
         window.addEventListener("mouseup", (e) => {
