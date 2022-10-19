@@ -1,15 +1,18 @@
 <html>
   <head>
     <style>
-      :root { --xxx : black; }
+      /*@media css tag provides a lot of flexibility for handling screen sizes dynamically in just css*/
+
+      :root { --xxx : black; }  /*store general vars here and access in javascript*/
       #numpad {
         width: 380px;
         position: absolute;
-        top: 120px;
+        top: 200px;
         touch-action: manipulation;
+        margin: auto;
       }
       #output {
-        font-size: 30px;
+        font-size: 36px;
         position: absolute;
         left: 500px;
         top: 200px;
@@ -21,13 +24,13 @@
       #showLetter {
         font-size: 48px;
         position: absolute;
-        left: 500px;
+        left: 0px;
         top: 120px;
         border-width: 10px;
         border-style: solid;
-        width: 370px;
         border-radius: 20px;
         border-color: #ffaa00;
+        text-align: center;
       }
       .buttonClass01 {
         transition-duration: 0.1s;
@@ -63,22 +66,21 @@
       Press on Keypad to generate old fashioned text <br />
       Long Press for Numbers <br />
       Short Press 0 for Space, Short Press # for Back Space <br />
-      Refresh Page to Reset *<br /><br />
+      Refresh Page to Reset <br /><br />
     </div>
 
     <div id="numpad"></div>
 
-    <div id="showLetter">Letter:</div>
+    <div id="showLetter"></div>
 
     <div id="o1">
-      <textarea id="output" rows="4" cols="20"> </textarea>
+      <textarea id="output" rows="3" cols="20"> </textarea>
     </div>
   </body>
 
   <script>
     "use strict";
 
-    //@media css tag provides a lot of flexibility for handling screen sizes dynamically in just css
 
     function makeKeyCounts() {
       //long winded amount of code to generate lookup tables
@@ -154,7 +156,7 @@
       if (np.mouseDown) np.clickTime = clickTime;
 
       if (clickTime > np.LONGPRESS && np.mouseDown) {
-        np.showLetter.textContent = "Num: " + np.presses[ln];
+        np.showLetter.textContent = np.presses[ln];
         document.getElementById(np.keyIdPrefix+np.presses[ln]).style.backgroundColor="#00FFFF";
       }
 
@@ -169,7 +171,7 @@
 
         np.textOutput.textContent = np.textArray.join("") + "_";
         resetPresses();
-        np.showLetter.textContent = "Letter:";
+        np.showLetter.textContent = "";
         checkScroll();
       }
     }
@@ -219,7 +221,7 @@
       np.timeLast = time;
 
       if (letter === "\u00A0") letter = "Space"; //remember it is nbsp type of space
-      np.showLetter.textContent = "Letter: " + letter;
+      np.showLetter.textContent = letter;
     }
 
     function displayNumPad() {
@@ -237,6 +239,7 @@
       np.info = document.getElementById("info");
       np.showLetter = document.getElementById("showLetter");
       np.textOutput = document.getElementById("output");
+      np.numpad = document.getElementById("numpad");
       np.buttons = [];
       np.textArray = [];
       np.lineLength = 0;
@@ -302,7 +305,7 @@
           np.mouseDownTarget = null;
         });
 
-        np.info.style.fontSize = "36px";
+        np.info.style.fontSize = "30px";
 
       }
       else {
@@ -333,7 +336,7 @@
       np.delete = false;
       if (e.target.id === np.keyIdPrefix + np.BACKSPACE) {  //button ids are: keyId{#} to make them more unique
         np.delete = true;
-        np.showLetter.textContent = "Letter: Delete";
+        np.showLetter.textContent = "Delete";
       }
 
       e.target.style.backgroundColor = "#FF00FF";
@@ -360,7 +363,7 @@
         np.textArray.pop();
         np.textOutput.textContent = np.textArray.join("") + "_";
         resetPresses();
-        np.showLetter.textContent = "Letter:";
+        np.showLetter.textContent = "";
         checkScroll();
       }
 
@@ -371,9 +374,9 @@
     }
 
     function windowResize(e) {
-      let numpadDiv = document.getElementById("numpad");
-      let outDiv = document.getElementById("output");
-      let showDiv = document.getElementById("showLetter");
+      let numpadDiv = np.numpad; //document.getElementById("numpad");
+      let outDiv = np.textOutput; //document.getElementById("output");
+      let showDiv = np.showLetter; //document.getElementById("showLetter");
 
       let dw = window.innerWidth * np.screenMult;
       const bw = Math.max(120, Math.trunc(dw / 3.2));
@@ -382,15 +385,22 @@
 
       //probably keep an array of divs and loop through since
       //new style is same for all
-      showDiv.setAttribute("style", `left:${dw + 10}`);
-      outDiv.setAttribute("style", `left:${dw + 10}`);
+      const left=`left:${dw + 10}`;
+      //showDiv.setAttribute("style", left);
+      outDiv.setAttribute("style", left);
+      //showDiv.style.width = Math.trunc(.6*dw);
+      outDiv.style.width = dw;
 
+      //where to store 200?
+      showDiv.style.width = "200px";
+      showDiv.style.left =  Math.trunc( (dw - 200)/2 ) + 'px';
+ 
       numpadDiv.setAttribute("style", `width:${dw}; height:${bh}`);
 
       if (2 * dw > window.innerWidth) {
-        const top = bh * 4 + 10;
+        const top = 100 + bh * 4 ;
         const styleString = `position:relative; left: 0px; top:${top}px;`;
-        showDiv.setAttribute("style", styleString);
+        //showDiv.setAttribute("style", styleString);
         outDiv.setAttribute("style", styleString);
       }
 
