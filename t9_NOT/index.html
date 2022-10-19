@@ -54,7 +54,7 @@
       Press on Keypad to generate old fashioned text <br />
       Long Press for Numbers <br />
       Short Press 0 for Space, Short Press # for Back Space <br />
-      Refresh Page to Reset *<br /><br />
+      Refresh Page to Reset <br /><br />
     </div>
 
     <div id="numpad"></div>
@@ -260,24 +260,23 @@
         b.value = buttonText;
         b.setAttribute("class", "buttonClass01");
 
-        b.addEventListener("mousedown", (e) => {
-          mouseDown(e, numpadKeys[i]);
-        });
-
-        b.addEventListener("mouseup", (e) => {
-          mouseUp(e);
-        });
-
-        /*
-        b.addEventListener("touchstart", (e) => {
-          mouseDown(e, numpadKeys[i]);
-        });
-
-        b.addEventListener("touchend", (e) => {
-          mouseUp(e);
-        });
-        */
-
+        if ( np.mobile ) {     
+          b.addEventListener("touchstart", (e) => {
+            mouseDown(e, numpadKeys[i]);
+          });
+          b.addEventListener("touchend", (e) => {
+            mouseUp(e);
+          });
+        }
+        else {
+          b.addEventListener("mousedown", (e) => {
+            mouseDown(e, numpadKeys[i]);
+          });
+          b.addEventListener("mouseup", (e) => {
+            mouseUp(e);
+          });
+        }
+          
         numpad.appendChild(b);
       }
 
