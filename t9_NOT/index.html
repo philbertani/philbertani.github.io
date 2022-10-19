@@ -38,10 +38,17 @@
         background-color: #ffff00;
         color: #000000;
       }
-      .buttonClass01:hoverx {  //causing too many problems
-        background-color: #ff00ff;
-        color: white;
+
+      .buttonClass01Mobile {
+        transition-duration: 0.1s;
+        font-size: 36px;
+        border: 6px solid;
+        border-radius: 30px;
+        border-color: #ffaa00;
+        background-color: #ffff00;
+        color: #000000;
       }
+
 
     </style>
   </head>
@@ -58,7 +65,7 @@
       Press on Keypad to generate old fashioned text <br />
       Long Press for Numbers <br />
       Short Press 0 for Space, Short Press # for Back Space <br />
-      Refresh Page to Reset *<br /><br />
+      Refresh Page to Reset <br /><br />
     </div>
 
     <div id="numpad"></div>
@@ -266,7 +273,10 @@
         if (numpadKeys[i] === "#") buttonText = "#\n<"; //uglier
 
         b.value = buttonText;
-        b.setAttribute("class", "buttonClass01");
+
+        if (np.mobile) {
+
+        }
 
         if ( np.mobile ) {     
           b.addEventListener("touchstart", (e) => {
@@ -275,12 +285,14 @@
           /*b.addEventListener("touchend", (e) => {
             mouseUp(e);
           });*/
+          b.setAttribute("class", "buttonClass01Mobile");
+
         }
         else {
           b.addEventListener("mousedown", (e) => {
             mouseDown(e, numpadKeys[i]);
           });
-
+          b.setAttribute("class", "buttonClass01");
         }
           
         numpad.appendChild(b);
