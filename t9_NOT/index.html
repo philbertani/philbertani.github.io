@@ -1,6 +1,7 @@
 <html>
   <head>
     <style>
+      :root { --xxx : black; }
       #numpad {
         width: 380px;
         position: absolute;
@@ -29,16 +30,19 @@
         border-color: #ffaa00;
       }
       .buttonClass01 {
-        transition-duration: 0.4s;
+        transition-duration: 0.1s;
         font-size: 26px;
         border: 6px solid;
         border-radius: 20px;
         border-color: #ffaa00;
+        background-color: #ffff00;
+        color: #000000;
       }
-      .buttonClass01:hover {
+      .buttonClass01:hoverx {  //causing too many problems
         background-color: #ff00ff;
         color: white;
       }
+
     </style>
   </head>
 
@@ -54,7 +58,7 @@
       Press on Keypad to generate old fashioned text <br />
       Long Press for Numbers <br />
       Short Press 0 for Space, Short Press # for Back Space <br />
-      Refresh Page to Reset <br /><br />
+      Refresh Page to Reset *<br /><br />
     </div>
 
     <div id="numpad"></div>
@@ -68,6 +72,8 @@
 
   <script>
     "use strict";
+
+    //@media css tag provides a lot of flexibility for handling screen sizes dynamically in just css
 
     function makeKeyCounts() {
       //long winded amount of code to generate lookup tables
@@ -143,6 +149,7 @@
 
       if (timeNow - np.mouseDownTime > np.LONGPRESS && np.mouseDown) {
         np.showLetter.textContent = "Num: " + np.presses[ln];
+        document.getElementById(np.keyIdPrefix+np.presses[ln]).style.backgroundColor="#00FFFF";
       }
 
       if (timeNow - np.timeLast > 400 && np.numPresses > 0 && !np.mouseDown) {
@@ -210,10 +217,12 @@
     }
 
     function displayNumPad() {
-      let np = {};
+      let np = {};  //global np - numpad object
       np.init = "666";
       np.BACKSPACE = "#";
       np.LONGPRESS = 700;
+      np.keyIdPrefix = "keyId";
+      np.screenMult = 0.4;
       np.tables = makeKeyCounts();
       np.lettersByKey = np.tables[2];
       np.numPresses = 0;
@@ -222,7 +231,6 @@
       np.showLetter = document.getElementById("showLetter");
       np.textOutput = document.getElementById("output");
       np.buttons = [];
-      np.screenMult = 0.4;
       np.textArray = [];
       np.lineLength = 0;
 
@@ -233,10 +241,10 @@
         )
       ) {
         np.mobile = true;
-        np.screenMult = 0.96;
+        np.screenMult = 0.99;
       }
 
-      window.np = np; //make np global
+      window.np = np; //make np available globally
 
       const numpadKeys = "123456789*0#";
       const numpad = document.getElementById("numpad");
@@ -245,7 +253,7 @@
       for (let i = 0; i < numpadKeys.length; i++) {
         var b = document.createElement("input");
         b.type = "button";
-        b.id = numpadKeys[i];
+        b.id = np.keyIdPrefix + numpadKeys[i];
         let buttonText = numpadKeys[i];
         buttonText += "\n";
         if (np.lettersByKey[numpadKeys[i]]) {
@@ -264,20 +272,33 @@
           b.addEventListener("touchstart", (e) => {
             mouseDown(e, numpadKeys[i]);
           });
-          b.addEventListener("touchend", (e) => {
+          /*b.addEventListener("touchend", (e) => {
             mouseUp(e);
-          });
+          });*/
         }
         else {
           b.addEventListener("mousedown", (e) => {
             mouseDown(e, numpadKeys[i]);
           });
-          b.addEventListener("mouseup", (e) => {
-            mouseUp(e);
-          });
+
         }
           
         numpad.appendChild(b);
+
+      }
+
+
+      if ( np.mobile ) {
+        window.addEventListener("touchend", (e) => {
+          if (np.mouseDown && np.mouseDownTarget) mouseUp(np.mouseDownTarget);
+          np.mouseDownTarget = null;
+        });
+      }
+      else {
+        window.addEventListener("mouseup", (e) => {
+          if (np.mouseDown && np.mouseDownTarget) mouseUp(np.mouseDownTarget);
+          np.mouseDownTarget = null;
+        });
       }
 
       //keep track of mousedown times so we can distinguish letters from numbers
@@ -299,13 +320,25 @@
       addKeyPress(key, Date.now());
 
       np.delete = false;
-      if (e.target.id === np.BACKSPACE) {
+      if (e.target.id === np.keyIdPrefix + np.BACKSPACE) {  //button ids are: keyId{#} to make them more unique
         np.delete = true;
         np.showLetter.textContent = "Letter: Delete";
       }
+
+      e.target.style.backgroundColor = "#FF00FF";
+      e.target.style.color = "#FFFFFF";
+      e.target.style.borderRadius = "50%";
+
+      np.mouseDownTarget = e; //we need to save it if we mouse up off the button 
+      //we will need to check e.touches for the unique id associated since there can be multiple
+      //touch points 
+
+      //console.log(e);
+
     }
 
     function mouseUp(e) {   // really mouse or touch
+      //mouse up may occur anywhere on the screen if user moves pointer away from button after pressing it
       np.mouseDown = false;
       np.mouseUpTime = Date.now();
       np.clickTime = np.mouseUpTime - np.mouseDownTime;
@@ -319,6 +352,11 @@
         np.showLetter.textContent = "Letter:";
         checkScroll();
       }
+
+      e.target.style.backgroundColor = "#FFFF00";
+      e.target.style.color = "#000000";
+      e.target.style.borderRadius = "25px";
+
     }
 
     function windowResize(e) {
