@@ -405,8 +405,9 @@
       const bh = Math.trunc(bw * 0.7);
       dw = Math.trunc ( bw * 3. );
 
-      showDiv.style.width = '200px';
-      showDiv.style.left =  Math.trunc( (dw - 200)/2 ) + 'px';
+      const showWidth = dw/2;
+      showDiv.style.width = showWidth + 'px';
+      showDiv.style.left =  Math.trunc( (dw - showWidth)/2 ) + 'px';
 
       showDiv.style.top = SN(np.info.style.maxHeight) + 'px'; 
 
