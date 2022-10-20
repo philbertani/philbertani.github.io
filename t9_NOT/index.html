@@ -5,26 +5,20 @@
 
       :root { --xxx : black; }  /*store general vars here and access in javascript*/
       #numpad {
-        width: 360px;
         position: absolute;
-        top: 200px;
         touch-action: manipulation;
         margin: auto;
       }
       #output {
         font-size: 36px;
         position: absolute;
-        left: 500px;
-        top: 200px;
         border-width: 10px;
         border-radius: 25px;
         border-color: #ff00ff;
       }
       #showLetter {
-        font-size: 48px;
+        font-size: 50px;
         position: absolute;
-        left: 0px;
-        top: 120px;
         border-width: 10px;
         border-style: solid;
         border-radius: 20px;
@@ -43,7 +37,7 @@
 
       .buttonClass01Mobile {
         transition-duration: 0.1s;
-        font-size: 48px;
+        font-size: 50px;
         border: 6px solid;
         border-radius: 30px;
         border-color: #ffaa00;
@@ -52,8 +46,6 @@
       }
       .info {
         font-size: 20px;
-        max-height: 105px;
-        min-width: 370px;
         overflow-y: auto;
       }
 
@@ -65,7 +57,7 @@
       Press on Keypad to generate old fashioned text <br />
       Long Press for Numbers <br />
       Short Press 0 for Space, Short Press # for Back Space <br />
-      Refresh Page to Reset <br /><br />
+      Refresh Page to Reset *<br /><br />
     </div>
 
     <div id="numpad"></div>
@@ -78,8 +70,8 @@
   </body>
 
   <script>
-    "use strict";
 
+    "use strict";
 
     function makeKeyCounts() {
       //long winded amount of code to generate lookup tables
@@ -226,10 +218,14 @@
     function displayNumPad() {
       let np = {};  //global np - numpad object
       np.init = "666";
+      np.mobileDebug = false;
+      np.mobile = false;
       np.BACKSPACE = "#";
       np.LONGPRESS = 700;
       np.keyIdPrefix = "keyId";
       np.screenMult = 0.4;
+      np.buttonMin = 180;
+      np.buttonMax = 120;
       np.tables = makeKeyCounts();
       np.lettersByKey = np.tables[2];
       np.numPresses = 0;
@@ -280,16 +276,14 @@
           b.addEventListener("touchstart", (e) => {
             mouseDown(e, numpadKeys[i]);
           });
-          /*b.addEventListener("touchend", (e) => {
-            mouseUp(e);
-          });*/
-          b.setAttribute("class", "buttonClass01Mobile");
 
+          b.setAttribute("class", "buttonClass01Mobile");
         }
         else {
           b.addEventListener("mousedown", (e) => {
             mouseDown(e, numpadKeys[i]);
           });
+
           b.setAttribute("class", "buttonClass01");
         }
           
@@ -297,6 +291,8 @@
 
       }
 
+      //np.mobile = true;
+      //np.mobileDebug = true;
 
       if ( np.mobile ) {
         window.addEventListener("touchend", (e) => {
@@ -304,11 +300,24 @@
           np.mouseDownTarget = null;
         });
 
-        np.info.style.fontSize = "30px";
+        np.info.style.maxHeight = "150px";
+        np.info.style.fontSize = "24px";
+        np.info.style.width = screen.width + 'px';
+
         np.textOutput.style.fontSize = "40px";  //textarea resizes to fit the rows and cols based on fontSize
+        np.buttonMin = 1e6;
+
+        if (np.mobileDebug) {
+          window.addEventListener("mouseup", (e) => {
+            if (np.mouseDown && np.mouseDownTarget) mouseUp(np.mouseDownTarget);
+            np.mouseDownTarget = null;
+          });
+        }
 
       }
       else {
+        np.info.style.maxHeight = "120px";
+
         window.addEventListener("mouseup", (e) => {
           if (np.mouseDown && np.mouseDownTarget) mouseUp(np.mouseDownTarget);
           np.mouseDownTarget = null;
@@ -373,6 +382,12 @@
 
     }
 
+    //need a function to strip 'px' from style property and return a number
+    function SN( str ) {
+      //parseFloat ?
+      return Number(str.replace('px',''));
+    }
+
     function windowResize(e) {
 
       //using setAttribute('style',*) was really screwing things up
@@ -382,29 +397,29 @@
       let showDiv = np.showLetter; 
 
       let dw = window.innerWidth * np.screenMult;
-      const bw = Math.max(120, Math.trunc(dw / 3.2));
+      const bw = Math.max(np.buttonMax,Math.min(np.buttonMin, Math.trunc(dw / 3.)));
       const bh = Math.trunc(bw * 0.7);
-      dw = Math.trunc ( bw * 3.1 );
+      dw = Math.trunc ( bw * 3. );
+
+      showDiv.style.width = '200px';
+      showDiv.style.left =  Math.trunc( (dw - 200)/2 ) + 'px';
+
+      showDiv.style.top = SN(np.info.style.maxHeight) + 'px'; 
+
+      numpad.style.top = SN(showDiv.style.top) + 100 + 'px';
+     
+      numpad.style.width = dw + 'px';  //make sure to set it to 3x button size
 
       outDiv.style.left = dw + 20 + 'px';
       outDiv.style.width = dw + 'px';
+      outDiv.style.top = numpad.style.top;  
 
-      //where to store the 200?
-      showDiv.style.width = '200px';
-      showDiv.style.left =  Math.trunc( (dw - 200)/2 ) + 'px';
- 
-      numpad.style.width = dw + 'px';  //make sure to set it to 3x button size
-  
+      console.log(2*dw, window.innerWidth);
       if (2 * dw > window.innerWidth) {
-        const top = 100 + bh * 4 ;
-        outDiv.style.top = top + 'px';
-        outDiv.style.left = '0px';
-        outDiv.style.position = 'relative';
+        outDiv.style.top = SN(numpad.style.top) + bh*4 + 20 + 'px'; 
+        outDiv.style.left = '0px';	
       }
-      else {
-        outDiv.style.position = 'absolute';
-        outDiv.style.top = '200px';
-      }
+
 
       let buttons = numpadDiv.children;
       //the only children of the div are the buttons so just loop through
