@@ -1,9 +1,12 @@
 <html>
   <head>
     <style>
+
       /*@media css tag provides a lot of flexibility for handling screen sizes dynamically in just css*/
+      /*should stick to everything in classes since they are then accessible via obj.style.property
 
       :root { --xxx : black; }  /*store general vars here and access in javascript*/
+
       #numpad {
         position: absolute;
         touch-action: manipulation;
@@ -17,7 +20,6 @@
         border-color: #ff00ff;
       }
       #showLetter {
-        font-size: 50px;
         position: absolute;
         border-width: 10px;
         border-style: solid;
@@ -37,7 +39,7 @@
 
       .buttonClass01Mobile {
         transition-duration: 0.1s;
-        font-size: 50px;
+        font-size: 80px;
         border: 6px solid;
         border-radius: 30px;
         border-color: #ffaa00;
@@ -57,7 +59,7 @@
       Press on Keypad to generate old fashioned text <br />
       Long Press for Numbers <br />
       Short Press 0 for Space, Short Press # for Back Space <br />
-      Refresh Page to Reset *<br /><br />
+      Refresh Page to Reset <br /><br />
     </div>
 
     <div id="numpad"></div>
@@ -291,8 +293,8 @@
 
       }
 
-      //np.mobile = true;
-      //np.mobileDebug = true;
+      np.mobile = true;
+      np.mobileDebug = true;
 
       if ( np.mobile ) {
         window.addEventListener("touchend", (e) => {
@@ -300,12 +302,13 @@
           np.mouseDownTarget = null;
         });
 
-        np.info.style.maxHeight = "150px";
-        np.info.style.fontSize = "24px";
+        np.info.style.maxHeight = "200px";
+        np.info.style.fontSize = "30px";
         np.info.style.width = screen.width + 'px';
 
-        np.textOutput.style.fontSize = "40px";  //textarea resizes to fit the rows and cols based on fontSize
+        np.textOutput.style.fontSize = "60px";  //textarea resizes to fit the rows and cols based on fontSize
         np.buttonMin = 1e6;
+        np.showLetter.style.fontSize = "80px";
 
         if (np.mobileDebug) {
           window.addEventListener("mouseup", (e) => {
@@ -317,6 +320,7 @@
       }
       else {
         np.info.style.maxHeight = "120px";
+        np.showLetter.style.fontSize = "60px";
 
         window.addEventListener("mouseup", (e) => {
           if (np.mouseDown && np.mouseDownTarget) mouseUp(np.mouseDownTarget);
@@ -406,7 +410,8 @@
 
       showDiv.style.top = SN(np.info.style.maxHeight) + 'px'; 
 
-      numpad.style.top = SN(showDiv.style.top) + 100 + 'px';
+      console.log(showDiv.style);
+      numpad.style.top = SN(showDiv.style.top) + SN(showDiv.style.fontSize)*2 + 'px';
      
       numpad.style.width = dw + 'px';  //make sure to set it to 3x button size
 
@@ -414,7 +419,7 @@
       outDiv.style.width = dw + 'px';
       outDiv.style.top = numpad.style.top;  
 
-      console.log(2*dw, window.innerWidth);
+      //console.log(2*dw, window.innerWidth);
       if (2 * dw > window.innerWidth) {
         outDiv.style.top = SN(numpad.style.top) + bh*4 + 20 + 'px'; 
         outDiv.style.left = '0px';	
