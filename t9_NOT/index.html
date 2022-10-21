@@ -59,7 +59,7 @@
       Press on Keypad to generate old fashioned text <br />
       Long Press for Numbers <br />
       Short Press 0 for Space, Short Press # for Back Space <br />
-      Refresh Page to Reset <br /><br />
+      Refresh Page to Reset *<br /><br />
     </div>
 
     <div id="numpad"></div>
@@ -81,8 +81,7 @@
       const aOffset = 65; //A=65
       let numP = {}; //number of presses per numeric key to get alpha key
       let invP = {}; //the numeric key pressed per alpha key
-      let count = 0,
-        count2 = 0;
+      let count = 0, count2 = 0;
       let whichKey = 2;
       for (let i = 0; i < 26; i++) {
         const letter = String.fromCharCode(i + aOffset);
@@ -383,7 +382,7 @@
 
       e.target.style.backgroundColor = "#FFFF00";
       e.target.style.color = "#000000";
-      e.target.style.borderRadius = "25px";
+      e.target.style.borderRadius = "40px";  //should be CSS global var
 
     }
 
@@ -397,6 +396,7 @@
 
       //using setAttribute('style',*) was really screwing things up
 
+      //ned to detect when changing to and from landscape in mobile - font sizes need to change
       if (np.mobile && screen.width > screen.height || !np.mobile ) { np.screenMult = np.normalScreenMult; }
       else if (np.mobile) { np.screenMult = 1.;}
 
