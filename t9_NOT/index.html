@@ -39,9 +39,9 @@
 
       .buttonClass01Mobile {
         transition-duration: 0.1s;
-        font-size: 80px;
-        border: 6px solid;
-        border-radius: 30px;
+        font-size: 90px;
+        border: 10px solid;
+        border-radius: 40px;
         border-color: #ffaa00;
         background-color: #ffff00;
         color: #000000;
@@ -59,7 +59,7 @@
       Press on Keypad to generate old fashioned text <br />
       Long Press for Numbers <br />
       Short Press 0 for Space, Short Press # for Back Space <br />
-      Refresh Page to Reset *<br /><br />
+      Refresh Page to Reset <br /><br />
     </div>
 
     <div id="numpad"></div>
@@ -225,7 +225,8 @@
       np.BACKSPACE = "#";
       np.LONGPRESS = 700;
       np.keyIdPrefix = "keyId";
-      np.screenMult = 0.4;
+      np.normalScreenMult = .4;
+      np.screenMult = np.normalScreenMult;
       np.buttonMin = 180;
       np.buttonMax = 120;
       np.tables = makeKeyCounts();
@@ -302,13 +303,13 @@
           np.mouseDownTarget = null;
         });
 
-        np.info.style.maxHeight = "200px";
+        np.info.style.maxHeight = "240px";
         np.info.style.fontSize = "30px";
         np.info.style.width = screen.width + 'px';
 
-        np.textOutput.style.fontSize = "60px";  //textarea resizes to fit the rows and cols based on fontSize
+        np.textOutput.style.fontSize = "80px";  //textarea resizes to fit the rows and cols based on fontSize
         np.buttonMin = 1e6;
-        np.showLetter.style.fontSize = "80px";
+        np.showLetter.style.fontSize = "100px";
 
         if (np.mobileDebug) {
           window.addEventListener("mouseup", (e) => {
@@ -396,6 +397,9 @@
 
       //using setAttribute('style',*) was really screwing things up
 
+      if (np.mobile && screen.width > screen.height || !np.mobile ) { np.screenMult = np.normalScreenMult; }
+      else if (np.mobile) { np.screenMult = 1.;}
+
       let numpadDiv = np.numpad; 
       let outDiv = np.textOutput; 
       let showDiv = np.showLetter; 
@@ -411,7 +415,6 @@
 
       showDiv.style.top = SN(np.info.style.maxHeight) + 'px'; 
 
-      console.log(showDiv.style);
       numpad.style.top = SN(showDiv.style.top) + SN(showDiv.style.fontSize)*2 + 'px';
      
       numpad.style.width = dw + 'px';  //make sure to set it to 3x button size
