@@ -1,0 +1,22 @@
+.screens {
+    position:absolute;
+    width:96%; height:90%; margin:2%; box-sizing:border-box; padding:0%;
+    left:0px; top: 0px;}
+
+td {margin:0px;padding:0px}
+
+table {border-spacing:0px} /*we are making very small td elements so we need the spacing to be zero*/
+
+table#bricks{border-spacing:3px; z-index:200; }
+table#bricks td  { border-radius:5px; }
+
+#paddle { 
+    position:absolute; top:88vh; left:40vw; height:4vh; width:20vw; 
+    background-color: rgba( 255,0,255,1); z-index:200; }
+
+#colorEffects { background-color: rgba(0,0,255,0);}
+
+#messages { background-color:black; color: yellow; font-size:xx-large;
+    position:fixed; top:50vh; left:50vw; transform: translate(-50%,-50%); 
+    visibility: hidden;
+    }
