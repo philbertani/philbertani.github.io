@@ -1,0 +1,47 @@
+#numpad {
+    position: absolute;
+    touch-action: manipulation;
+    margin: auto;
+}
+
+#output {
+    font-size: 36px;
+    position: absolute;
+    border-width: 10px;
+    border-radius: 25px;
+    border-color: #ff00ff;
+}
+
+#showLetter {
+    position: absolute;
+    border-width: 10px;
+    border-style: solid;
+    border-radius: 20px;
+    border-color: #ffaa00;
+    text-align: center;
+}
+
+.buttonClass01 {
+    transition-duration: 0.1s;
+    font-size: 26px;
+    border: 6px solid;
+    border-radius: 20px;
+    border-color: #ffaa00;
+    background-color: #ffff00;
+    color: #000000;
+}
+
+.buttonClass01Mobile {
+    transition-duration: 0.1s;
+    font-size: 90px;
+    border: 10px solid;
+    border-radius: 40px;
+    border-color: #ffaa00;
+    background-color: #ffff00;
+    color: #000000;
+}
+
+.info {
+    font-size: 20px;
+    overflow-y: auto;
+}
