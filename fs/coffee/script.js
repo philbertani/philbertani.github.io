@@ -161,7 +161,7 @@ function attemptToBuyProducer(data, producerId) {
 function buyButtonClick(event, data) {
 
   //why does having the following line break the tests??
-  //if (event.target.nodeName != 'BUTTON' ) return;
+  if (event.target.nodeName != 'BUTTON' ) return;
 
   //event.target.id is buy_${producer_id} when we click a button
   producerId = event.target.id.replace('buy_','');
@@ -179,7 +179,6 @@ function buyButtonClick(event, data) {
   else {
     window.alert('Not enough coffee!') ;
   }
-
 
 }
 
