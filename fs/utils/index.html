@@ -1,0 +1,33 @@
+<html>
+<title>Extended Character Browser</title>
+
+<body onload="printChars(9600)">
+<input type="number" id="start" value="9600" 
+   onchange="printChars(this.valueAsNumber)"> &nbsp Input Start of Range (55291 seems to be the last)</input>
+<br>
+
+<div id="x"></div>
+
+</body>
+
+
+<script>
+
+function printChars(start) {
+
+  //const start = document.getElementById('start').valueAsNumber;
+
+  const sp = "\u00A0";  //have to use &nbsp when coding directly in html
+  let out='<br>';
+  for (let i=start; i<start+500; i++) {
+    out += i + ":" + String.fromCharCode(i) + "," + sp;
+    if ( i%10===0 ) out +="<br>";
+  }
+
+  document.getElementById('x').innerHTML = out;
+ 
+}
+
+</script>
+
+</html>
