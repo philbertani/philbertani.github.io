@@ -17,10 +17,13 @@ function toCSS( rgba )  {
   }
 
 function startGame() {
+
     console.log('starting');
     //center of paddle tracks mouse x coordinate
 
     window.GO = {} ; //main game object
+
+    GO.audioInit = false;
 
     GO.mousePixelPos = [100,0];
     GO.messages = document.getElementById('messages');
@@ -86,14 +89,68 @@ function play(button) {
         GO.gameTimer = setInterval( updateGame, 1000/GO.fps );
         button.innerText = "PAUSE";
         GO.playing = true;
+        //if this is the first time initialize audio context and oscillators
+        if ( !GO.audioInit ) {
+            console.log('starting audio');
+            audioStart();
+        }
     }
     else { 
         clearInterval(GO.gameTimer);
         GO.playing = false;
-        button.innerText = "PLAY";    
+        button.innerText = "PLAY";   
+        
+
     }
    
 }
+
+function audioStart() {
+    GO.synth = {};
+
+    const GS = GO.synth;
+    window.GS = GS;
+
+    GS.freqTable = [ 100, 200, 300, 500, 800 , 100]
+    GS.freqs = [230,660,440];
+    GS.waveTypes = ['sine','sawtooth','square'];
+    
+    GS.ac = new AudioContext();
+    GS.osc = [];
+    GS.gainNode = [];
+    GS.numOsc = 3;
+
+    GS.gainNode.push( GS.ac.createGain());
+    GS.gainNode[0].connect(GS.ac.destination);
+
+    for (let i=0; i<GS.numOsc; i++) {
+        GS.osc.push (GS.ac.createOscillator());
+        GS.osc[i].connect(GS.gainNode[0]);
+        GS.osc[i].frequency.value = GS.freqs[i];
+        GS.osc[i].type = GS.waveTypes[i];
+    }
+    GO.audioInit=true;
+
+    for (let i=0; i<GS.numOsc; i++) {
+        GS.osc[i].start();
+    }
+
+    //start off muted
+    GS.gainNode[0].gain.value = 0;
+
+}
+
+
+function bounceSound(soundIndex) {
+
+    for (let i=0; i<GS.numOsc; i++) {
+        GS.osc[i].frequency.value = GS.freqTable[soundIndex] + i*10;
+    }
+
+    GS.gainNode[0].gain.value  = 1;
+    GS.gainNode[0].gain.setValueAtTime(0,GS.ac.currentTime+.1,.1)   
+}
+
 
 function adjustStuff() {
 
@@ -334,15 +391,20 @@ class Ball extends Sprite {
 
     newPosition() {
 
+        let soundIndex = -1;
+
         const newPos = ivecAdd(this.posXY,this.dv,false);
+
         if ( newPos[1] + this.maxDim[1] >= GO.mainDim.height  || newPos[1] <= 0) {
             this.dv[1] = -this.dv[1];
+            soundIndex = 0;
         }
         if ( newPos[0] + this.maxDim[0] >= GO.mainDim.width || newPos[0] <= 0 ) {
             this.dv[0] = -this.dv[0];
+            soundIndex = 1;
         } 
 
-        if (this.hitWall( newPos )) {
+        if (this.hitWall( newPos )) {  //wall meaning the wall of bricks
             this.dv[1] = -this.dv[1];
             GO.brickCount --;
             console.log('num bricks left',GO.brickCount);
@@ -350,6 +412,7 @@ class Ball extends Sprite {
                 console.log('no more bricks');
                 clearInterval(GO.gameTimer);
             }
+            soundIndex = 2;
         }
 
         const paddleOffset = this.hitPaddle(newPos);
@@ -370,6 +433,7 @@ class Ball extends Sprite {
 
             const sgn = Math.sign(this.dv[0]);
             this.dv[0] = Math.min(Math.abs(this.dv[0]),10) * sgn;
+            soundIndex = 3;
 
         }
 
@@ -385,19 +449,24 @@ class Ball extends Sprite {
                     this.dv = ivecMul(this.dv,[1.5,1.5 ]);
                     this.speed = length(this.dv);
                 }
+                soundIndex = 4;
             }
         }
 
         if ( newPos[1] < 1  ) {
             GO.colorEffects.style.backgroundColor = 'rgba(255,0,255,.5)';
             setTimeout( ()=>{ GO.colorEffects.style.backgroundColor='rgba(0,0,0,0)';},100);
+            soundIndex = 5;
         }
 
         //pos.XY is still the left top corner like a div
         //still need to clamp it because we want to increase dv
         newPos[0] = Math.min(GO.mainDim.width-this.maxDim[0],Math.max(0, newPos[0]));
         newPos[1] = Math.min(GO.mainDim.height-this.maxDim[1],Math.max(0, newPos[1]));
+
         this.updatePosition( newPos );
+
+        if (soundIndex > -1) bounceSound(soundIndex);
 
     }
 
