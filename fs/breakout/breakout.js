@@ -111,24 +111,29 @@ function audioStart() {
     const GS = GO.synth;
     window.GS = GS;
 
-    GS.freqTable = [ 100, 200, 300, 500, 800 , 100]
-    GS.freqs = [230,660,440];
-    GS.waveTypes = ['sine','sawtooth','square'];
+    //GS.freqTable = [ 110, 138.59, 164.81, 195.99, 246.94 , 293.66 ]
+    GS.freqTable = [ 146.83, 220, 277.18, 329.63, 391.99, 493.88 ]
+    GS.freqs = [230,660,440,700];
+    GS.waveTypes = ['sine','sawtooth','square','triangle'];
     
     GS.ac = new AudioContext();
     GS.osc = [];
     GS.gainNode = [];
-    GS.numOsc = 3;
+    GS.numOsc = 4;
 
     GS.gainNode.push( GS.ac.createGain());
+    GS.gainNode.push( GS.ac.createGain());
     GS.gainNode[0].connect(GS.ac.destination);
+    GS.gainNode[1].connect(GS.ac.destination);
 
     for (let i=0; i<GS.numOsc; i++) {
         GS.osc.push (GS.ac.createOscillator());
-        GS.osc[i].connect(GS.gainNode[0]);
+        const ii = Math.trunc(i/2); //
+        GS.osc[i].connect(GS.gainNode[ii]);
         GS.osc[i].frequency.value = GS.freqs[i];
         GS.osc[i].type = GS.waveTypes[i];
     }
+
     GO.audioInit=true;
 
     for (let i=0; i<GS.numOsc; i++) {
@@ -137,18 +142,27 @@ function audioStart() {
 
     //start off muted
     GS.gainNode[0].gain.value = 0;
-
+    GS.gainNode[1].gain.value = 0;
+    GS.toggle = 0;
 }
 
 
 function bounceSound(soundIndex) {
 
+    //audio "double buffering" so we can let the previous
+    //sound finish when we are bouncing very fast
+    const ii = GS.toggle;
+
     for (let i=0; i<GS.numOsc; i++) {
-        GS.osc[i].frequency.value = GS.freqTable[soundIndex] + i*10;
+        GS.osc[i].frequency.value = GS.freqTable[soundIndex] + i*50;
     }
 
-    GS.gainNode[0].gain.value  = 1;
-    GS.gainNode[0].gain.setValueAtTime(0,GS.ac.currentTime+.1,.1)   
+    //gainNodes 0,1 control oscillators [0,1] and [2,3]
+    //we flip which gain node every time
+    GS.gainNode[ii].gain.value  = 1;
+    GS.gainNode[ii].gain.setValueAtTime(0,GS.ac.currentTime+.1,.1) 
+    
+    GS.toggle ^= 1;
 }
 
 
