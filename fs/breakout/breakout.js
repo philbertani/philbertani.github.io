@@ -30,7 +30,9 @@ function startGame() {
     GO.mainScreen = document.getElementById('mainScreen');
     GO.mainScreen.div = document.getElementById('screen1'); //keep ref to div that contains table
 
-    GO.colorEffects = document.getElementById('colorEffects');
+    GO.colorEffects = document.getElementById('colorEffects'); 
+    //we are using divs layered on each other with alpha transparency values
+    //so one big div behind the whole game screen can change the game screen colors
 
     //GO.effectsScreen = document.getElementById('effects');
     //GO.effectsScreen.div = document.getElementById('screen2');
@@ -49,7 +51,10 @@ function startGame() {
     //    {initColor:'rgba(0,0,200,.4)', useMainPxSize:true, ColsRows:[1,100], pxMult:[300,2]});
 
     GO.bricksGrid = new makeGrid(GO.bricksTable, GO.effectsDim, 
-        {initColor:[200,200,0,.8], useMainPxSize:true, ColsRows:[10,7], pxMult:[30,8], varyColors:brickColors } );
+        {
+            initColor:[200,200,0,.8], useMainPxSize:true, 
+            ColsRows:[10,7], pxMult:[30,8], varyColors:brickColors 
+        } );
 
     GO.brickCount = GO.bricksGrid.count;
 
