@@ -101,20 +101,23 @@ class AudioVisualizer {
   canVisualize = false;
   play = false;
 
-  constructor() {
-    this.init();
+  constructor() {//this.init()
   }
 
   init() {
     this.AC = new AudioContext();
     this.AA = this.AC.createAnalyser();
     this.AA.fftSize = 2048;
-    this.initialized = true;
+    if (this.AC) this.initialized = true;
   }
 
   changeAudio(audioHTML) {
-    //we can only createMediaElementSource once but we need an audio
+    if (!this.initialized) {
+      this.init();
+    } //we can only createMediaElementSource once but we need an audio
     //element, so wait for just the first time
+
+
     if (!this.AudioSource && this.canVisualize) this.AudioSource = this.AC.createMediaElementSource(audioHTML); //once we connect an audio element to createMediaElementSource
     //it is stuck there forever, good news is that we can 
     //create a different audio element to deal with it 
@@ -581,6 +584,7 @@ const singleAlbum = props => {
     className: "slider",
     id: "dataType"
   }))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    key: "sliderInfo",
     style: {
       marginTop: '220px',
       height: '20px',
