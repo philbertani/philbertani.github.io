@@ -47,10 +47,15 @@ i.fa {
   cursor: pointer;
   font-size: 2em;
   transition: color 0.2s ease;
+  width: 10px;
 }
 
 i.fa:hover {
-  color: #00aa00;
+  color:rgb(255,0,255)
+}
+
+i.fa:active {
+  color:  rgb( 255,150,0)
 }
 
 td {
@@ -146,7 +151,7 @@ td {
 }
 
 .album img:hover {
-  box-shadow: 2px 2px 2px #5a5a5a;
+  box-shadow: 2px 2px 2px #9a5a9a;
 }
 
 .center {
@@ -175,3 +180,14 @@ td {
   display: flex;
   flex-direction: row;
 }
+
+#visualizer {
+  width: 60vw;
+  height: 200px;
+  background-color: rgba(0,0,0,0);
+  margin-left: 2em;
+  margin-top: 1em;
+  margin-right: 20px;
+}
+
+.slider { color: gray }

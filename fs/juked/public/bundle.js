@@ -17,10 +17,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _react_album__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./react/album */ "./client/react/album.js");
 /* harmony import */ var _react_singleAlbum__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./react/singleAlbum */ "./client/react/singleAlbum.js");
 /* harmony import */ var _fakeDB__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./fakeDB */ "./client/fakeDB.js");
+/* harmony import */ var _audio__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./audio */ "./client/audio.js");
 
 
 
 
+ //AV - AudioVisualizer
+
+const SongVisualizer = new _audio__WEBPACK_IMPORTED_MODULE_4__["default"]();
 
 const Main = () => {
   const [al, setAl] = react__WEBPACK_IMPORTED_MODULE_0___default().useState([]);
@@ -29,8 +33,8 @@ const Main = () => {
   react__WEBPACK_IMPORTED_MODULE_0___default().useEffect(() => {
     if (alId > -1) setAl([_fakeDB__WEBPACK_IMPORTED_MODULE_3__.Albums[alId]]);else setAl(_fakeDB__WEBPACK_IMPORTED_MODULE_3__.Albums);
   }, [alId]); //[] contains al by default
+  //console.log('al in react:', al);
 
-  console.log('al in react:', al);
   return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
     id: "main",
     className: "row container"
@@ -40,7 +44,7 @@ const Main = () => {
     onClick: () => {
       setAlId(-1);
     },
-    src: "juke.svg",
+    src: "./public/juke.svg",
     id: "logo"
   }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("section", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h4", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("a", {
     onClick: () => {
@@ -52,6 +56,7 @@ const Main = () => {
     id: "single-album",
     className: "column"
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_react_singleAlbum__WEBPACK_IMPORTED_MODULE_2__["default"], {
+    av: SongVisualizer,
     key: al[0].id,
     data: al[0]
   })) : al.length > 0 ? /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
@@ -65,6 +70,98 @@ const Main = () => {
 };
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Main);
+
+/***/ }),
+
+/***/ "./client/audio.js":
+/*!*************************!*\
+  !*** ./client/audio.js ***!
+  \*************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+//audio is the html audio component that
+//has been loaded
+class AudioVisualizer {
+  //we really only want to 
+  //instantiate this thing once
+  //and then update which audio source
+  //is connected/which file is playing
+  audioHTML;
+  AC; //AudioContext
+
+  AA; //analyser
+
+  lastNonZeroData = null;
+  initialized = false;
+  AudioSource = null;
+  canVisualize = false;
+  play = false;
+
+  constructor() {
+    this.init();
+  }
+
+  init() {
+    this.AC = new AudioContext();
+    this.AA = this.AC.createAnalyser();
+    this.AA.fftSize = 2048;
+    this.initialized = true;
+  }
+
+  changeAudio(audioHTML) {
+    //we can only createMediaElementSource once but we need an audio
+    //element, so wait for just the first time
+    if (!this.AudioSource && this.canVisualize) this.AudioSource = this.AC.createMediaElementSource(audioHTML); //once we connect an audio element to createMediaElementSource
+    //it is stuck there forever, good news is that we can 
+    //create a different audio element to deal with it 
+    //console.log('xxxxxxxxxxxx',this.AudioSource)
+
+    if (this.canVisualize) {
+      console.log(' connecting new audio ', audioHTML);
+      this.AudioSource.connect(this.AA);
+      this.AA.connect(this.AC.destination);
+    } else {//disconnecting/deleting does not prevent
+      //the AudioSource from getting Cors error once it
+      //has already been connected once to analyzer
+    }
+  }
+
+  getTimeDomainData() {
+    if (this.AA && this.initialized) {
+      let dataArray = new Uint8Array(this.AA.fftSize);
+      this.AA.getByteTimeDomainData(dataArray);
+      return dataArray;
+    }
+
+    return null;
+  }
+
+  getFrequencyData() {
+    if (this.AA && this.initialized) {
+      let dataArray = new Uint8Array(this.AA.fftSize);
+      this.AA.getByteFrequencyData(dataArray);
+      return dataArray;
+    }
+
+    return null;
+  } //would it be worth it to get Float32 data?
+
+
+  saveGoodData(nonZeroData) {
+    this.lastNonZeroData = [...nonZeroData]; //console.log('zzzzzzzz',this.lastNonZeroData[10])
+  }
+
+  setCanVisualize(input) {
+    this.canVisualize = input;
+  }
+
+}
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (AudioVisualizer);
 
 /***/ }),
 
@@ -132,6 +229,120 @@ console.log(Albums);
 
 /***/ }),
 
+/***/ "./client/react/Canvas.js":
+/*!********************************!*\
+  !*** ./client/react/Canvas.js ***!
+  \********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
+function _extends() { _extends = Object.assign ? Object.assign.bind() : function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; }; return _extends.apply(this, arguments); }
+
+
+let count = 0;
+let avg = 0;
+let totalCount = 0;
+
+const Canvas = props => {
+  const dataType = props.dt; //time or frequency domain
+
+  const timeScale = Math.max(props.dt === 0 ? props.ts : props.ts - .5, .01);
+  const SongVisualizer = props.av;
+  const canvasDim = props.canvasdim;
+  const offset = props.off;
+  const canvasRef = (0,react__WEBPACK_IMPORTED_MODULE_0__.useRef)(null);
+
+  const draw = (ctx, frameCount) => {
+    if (SongVisualizer.canVisualize && SongVisualizer.play === true && typeof dataType !== 'undefined') {
+      count++;
+      let musicData;
+
+      if (dataType === 0) {
+        musicData = SongVisualizer.getTimeDomainData();
+      } else if (dataType === 1) {
+        musicData = SongVisualizer.getFrequencyData();
+      } else {
+        musicData = [];
+      }
+
+      const n = Math.trunc(musicData.length * timeScale); //fft bins is half of this
+
+      ctx.canvas.width = canvasDim.width;
+      ctx.canvas.height = canvasDim.height * .9; //leave room for sliders at bottom
+
+      ctx.clearRect(0, 0, canvasDim.width, canvasDim.height);
+      ctx.lineWidth = dataType === 0 ? 1 : 4;
+      if (dataType === 1 && props.ts < .5) ctx.lineWidth += 15;else if (dataType === 0 && props.ts < .2) ctx.lineWidth += 5;else if (dataType === 0 && props.ts < .3) ctx.lineWidth += 2;
+      /*       if (props.ts < .3) ctx.lineWidth += 8*(dataType+1)
+            else if (props.ts < .4) ctx.lineWidth += 6*(dataType+1)
+            else if (props.ts < .6) ctx.lineWidth += 4*(dataType+1) */
+
+      const cc = (count + 1) % 3;
+      const s1 = 255;
+      const colors = [[s1, s1, 0], [s1, 0, s1], [0, s1, s1]];
+      const [r, g, b] = colors[cc];
+      ctx.strokeStyle = `rgba(${r},${g},${b},.7)`;
+      let x = 0;
+      let mid = dataType === 0 ? canvasDim.height / 2 : canvasDim.height;
+      let scale = dataType === 0 ? canvasDim.height / 255 * 3 : canvasDim.height / 255 / 1.8;
+      let dx = canvasDim.width / n;
+      let displayData = musicData;
+      let zeroCount = 0;
+      let sumData = 0; //let sumDataFinalThird = 0
+
+      for (let i = 0 + offset; i < n - offset; i++) {
+        //const freqScale= Math.sqrt(i+1)/Math.log(i+1)
+        const y = dataType === 0 ? mid + (displayData[i] - 128) * scale : mid - 30 - displayData[i] * scale * Math.sqrt(i + 1) / Math.log(i + 1);
+        ctx.beginPath();
+        ctx.lineTo(x, y);
+        ctx.lineTo(x, mid);
+        x += dx;
+        sumData += musicData[i];
+
+        if (dataType === 1) {
+          const ii = i % 2;
+          let [R, G, B, A] = ii === 0 ? [255, 255, 0, 1] : [255, 150, 0, 1];
+          const jj = i % 10;
+          A = jj < 5 ? 1 : .7;
+          ctx.strokeStyle = `rgba(${R},${G},${B},${A})`;
+        }
+
+        ctx.stroke();
+      }
+    }
+  };
+
+  (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    let frameCount = 0;
+    let animationFrameId; //Our draw came here
+
+    const render = () => {
+      frameCount++;
+      draw(context, frameCount);
+      animationFrameId = window.requestAnimationFrame(render);
+    };
+
+    render();
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+    };
+  }, [draw]);
+  return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("canvas", _extends({
+    ref: canvasRef
+  }, props));
+};
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Canvas);
+
+/***/ }),
+
 /***/ "./client/react/album.js":
 /*!*******************************!*\
   !*** ./client/react/album.js ***!
@@ -181,72 +392,211 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _album__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./album */ "./client/react/album.js");
 /* harmony import */ var _songRow__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./songRow */ "./client/react/songRow.js");
+/* harmony import */ var _Canvas__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./Canvas */ "./client/react/Canvas.js");
+
 
 
 
 const PAUSE = 0;
-const PLAY = 1;
-const ppIcon = ['fa-play-circle', 'fa-pause'];
-const newAudio = document.createElement('audio'); //this whole thing resets after going back to all albums and choosing an album again
+const PLAY = 1; //ok here is the deal - we CAN NOT connect an mp3 audio source
+//that is non local to the Audio Context directly from browser
+//without CORS working on both browser and server so in this
+//case we are screwed because the source for juke music does
+//not deal with Access-Control-Allow_origin so we are stuck
+//with a couple of mp3 files in public for now - the rest from
+//the original juke source
+//this whole thing resets after going back to all albums and choosing an album again
 
 const singleAlbum = props => {
-  const Songs = props.data.songs; //song sequence # to play, need to have 2 elements because the first may stay
+  //utilize useRef when we need to create a DOM element
+  //ourselves and keep track of it (Audio and Canvas)
+  const newAudioRef = react__WEBPACK_IMPORTED_MODULE_0___default().useRef(new Audio());
+  const newAudio2Ref = react__WEBPACK_IMPORTED_MODULE_0___default().useRef(new Audio());
+  const targetRef = react__WEBPACK_IMPORTED_MODULE_0___default().useRef(null);
+  let SongVisualizer = props.av; //console.log("av is: ", SongVisualizer);
+
+  const Songs = props.data.songs;
+  const ref = react__WEBPACK_IMPORTED_MODULE_0___default().useRef(); //useRef can persist a state without causing re-rendering
+  //it is also needed to be able to keep track of DOM components
+  //when we need direct access to them
+  //song sequence # to play, need to have 2 elements because the first may stay
   //the same and the second one is a toggle
 
-  const [px, setPx] = react__WEBPACK_IMPORTED_MODULE_0___default().useState([-1, 0]);
-  const [ps, setPs] = react__WEBPACK_IMPORTED_MODULE_0___default().useState([]);
+  const [px, setPx] = react__WEBPACK_IMPORTED_MODULE_0___default().useState([-1, 0]); //song id, play/pause toggle
+
+  const [ps, setPs] = react__WEBPACK_IMPORTED_MODULE_0___default().useState([]); //play state array
+
   const [audioId, setAudioId] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(-1);
+  const [ff, setFF] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(false);
+  const [canvasDim, setCanvas] = react__WEBPACK_IMPORTED_MODULE_0___default().useState({});
+  const [windowSize, setWindowSize] = react__WEBPACK_IMPORTED_MODULE_0___default().useState({});
+  const [playRate, setPlayRate] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(1);
+  const [timeScale, setTimeScale] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(1);
+  const [offset, setOffset] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(0); //music data type:  time or frequency
+
+  const [dataType, setDataType] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(0);
   react__WEBPACK_IMPORTED_MODULE_0___default().useEffect(() => {
-    console.log('in use effect');
+    const canvasDim = document.getElementById("visualizer");
+    setCanvas(canvasDim.getBoundingClientRect());
+  }, [windowSize]); //this will fire every time window size changes
+
+  react__WEBPACK_IMPORTED_MODULE_0___default().useEffect(() => {
+    window.addEventListener("resize", () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    });
+  }, []);
+  react__WEBPACK_IMPORTED_MODULE_0___default().useEffect(() => {
+    //console.log("in use effect");
     const oldPs = [...ps];
     ps.length = 0;
     let playing = false;
+    const newAudio = newAudioRef.current;
+    const newAudio2 = newAudio2Ref.current;
 
     for (let i = 0; i < Songs.length; i++) {
       const newState = i === px[0] ? oldPs[i] === PAUSE ? PLAY : PAUSE : PAUSE;
 
       if (newState === PLAY) {
         if (i !== audioId) {
-          //we do not have it loaded
-          newAudio.src = Songs[i].audioUrl;
-          newAudio.load();
-          newAudio.play();
-          console.dir('trying to play', newAudio);
+          setDataType(0);
+          setTimeScale(1);
+          SongVisualizer.canVisualize = false;
+
+          if (Songs[i].localNoCors) {
+            console.log("yeah we have this in /public and can analyze it");
+            SongVisualizer.canVisualize = true;
+            newAudio2.pause();
+            targetRef.current = newAudio;
+            SongVisualizer.changeAudio(targetRef.current);
+            SongVisualizer.play = true;
+          } else {
+            newAudio.pause();
+            SongVisualizer.play = false;
+            targetRef.current = newAudio2;
+          }
+
+          targetRef.current.src = Songs[i].audioUrl;
+          targetRef.current.load();
+          targetRef.current.play();
           setAudioId(i);
         } else if (i === audioId) {
-          //if it is already the currently loaded song 
+          //if it is already the currently loaded song
           //then unpause it instead of reloading  it
-          console.log('unpausing');
-          newAudio.play();
+          console.log("unpausing");
+          targetRef.current.play();
+          SongVisualizer.play = true;
         }
 
         playing = true;
       }
 
       setPs(x => [...x, newState]);
-    }
+    } //if (!playing && targetAudio) {
 
-    if (!playing) {
+
+    if (!playing && targetRef.current) {
       //if we get through the whole loop of songs without hitting
-      //a PLAY then everything must be paused 
-      newAudio.pause();
+      //a PLAY then everything must be paused
+      targetRef.current.pause();
+      SongVisualizer.play = false; //so we know to use the last good non Zero data
+      //so we can display something interesting other than a flat line
     }
   }, [px]); //this whole thing is called whenever we click on a song due to
-  //setting px which is [songId, toggle]
+  //setting px which is [songId, toggle], needed to include both
+  //songId and toggle to get the state to change properly
 
-  console.log('ps is:', ps);
+  react__WEBPACK_IMPORTED_MODULE_0___default().useEffect(() => {
+    if (targetRef.current) {
+      targetRef.current.playbackRate = playRate; //targetRef.current.play()
+    }
+  }, [playRate, px]);
+  react__WEBPACK_IMPORTED_MODULE_0___default().useEffect(() => {
+    if (ff) {
+      //fast forward
+      if (targetRef.current) {
+        targetRef.current.currentTime += 5;
+      }
+
+      setFF(false);
+    } //maybe if we are paused then play to get the data points
+    //don't display them, then pause and show the latest
+
+  }, [ff]);
   return [
   /*#__PURE__*/
   //with this structure we need to return an array of sub elements
-  react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_album__WEBPACK_IMPORTED_MODULE_1__["default"], {
+  react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    key: "singleAlbum",
+    style: {
+      position: "fixed"
+    },
+    className: "row"
+  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_album__WEBPACK_IMPORTED_MODULE_1__["default"], {
     key: props.data.id,
     data: props.data
-  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("table", {
-    key: props.data.id + 'table',
+  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    key: "xxx",
+    ref: ref,
+    id: "visualizer"
+  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_Canvas__WEBPACK_IMPORTED_MODULE_3__["default"], {
+    dt: Number(dataType),
+    ts: timeScale,
+    av: SongVisualizer,
+    off: offset,
+    canvasdim: canvasDim
+  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", {
+    onChange: ev => {
+      setPlayRate(ev.target.value);
+    },
+    type: "range",
+    min: ".1",
+    max: "2",
+    step: ".005",
+    value: playRate,
+    className: "slider",
+    id: "audioRate"
+  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", {
+    onChange: ev => {
+      setTimeScale(ev.target.value);
+    },
+    type: "range",
+    min: ".06",
+    max: "1",
+    step: ".01",
+    value: timeScale,
+    className: "slider",
+    id: "timeScale"
+  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", {
+    onChange: ev => {
+      setDataType(ev.target.value);
+    },
+    type: "range",
+    min: "0",
+    max: "1",
+    step: "1",
+    value: dataType,
+    className: "slider",
+    id: "dataType"
+  }))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    style: {
+      marginTop: '220px',
+      height: '20px',
+      marginLeft: "260px"
+    }
+  }, "(Playback Speed, Time or Freq Scale, Time vs Freq)"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    key: "yyy",
+    style: {
+      marginTop: "10px"
+    }
+  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("table", {
+    key: props.data.id + "table",
     id: "songs"
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("tbody", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("tr", {
     className: "gray"
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, "#"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, "Name"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, "Artist"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, "Genre")), Songs.length > 0 && Songs.map((song, ii) => /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_songRow__WEBPACK_IMPORTED_MODULE_2__["default"], {
+  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, "#"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, "Name"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, "Artist"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, "Genre")), Songs.length > 0 && Songs.map((song, ii) => /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_songRow__WEBPACK_IMPORTED_MODULE_2__["default"], {
     key: song.id,
     data: song,
     artist: props.data.artist.name,
@@ -254,8 +604,9 @@ const singleAlbum = props => {
     setPs: setPs,
     setPx: setPx,
     px: px,
-    ps: ps
-  }))))];
+    ps: ps,
+    setFF: setFF
+  })))))];
 };
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (singleAlbum);
@@ -288,7 +639,16 @@ const SongRow = props => {
       props.setPx([props.ii, props.px[0] === 0 ? 1 : 0]);
     },
     className: 'fa ' + ppIcon[props.ps[props.ii]]
-  })), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, pd.id), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, pd.name), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, props.artist), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, pd.genre));
+  })), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("i", {
+    onClick: () => {
+      props.setFF(true);
+    },
+    className: "fa fa-fast-forward"
+  })), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, pd.id), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", {
+    style: {
+      maxWidth: '10vw'
+    }
+  }, pd.name), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, props.artist), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("td", null, pd.genre));
 };
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (SongRow);
@@ -306,25 +666,32 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "songDB": () => (/* binding */ songDB)
 /* harmony export */ });
 const songDB = [{
-  "audioUrl": "https://storage.googleapis.com/juke-1379.appspot.com/juke-music/Dexter%20Britain/Creative%20Commons%20Volume%202/01%20The%20Tea%20Party.mp3",
+  //"audioUrl":"https://storage.googleapis.com/juke-1379.appspot.com/juke-music/Dexter%20Britain/Creative%20Commons%20Volume%202/01%20The%20Tea%20Party.mp3",
+  "audioUrl": "./public/xxx.mp3",
+  //allow at least one to get around the cors issue so we can connect audio context
   "name": "The Tea Party",
   "artist": "Dexter Britain",
   "album": "Creative Commons Volume 2",
   "genre": "Instrumental",
+  "localNoCors": "public",
   "artworkUrl": "https://learndotresources.s3.amazonaws.com/workshop/58cff0e769468300041ef9fd/creative_commons_vol_2.jpeg"
 }, {
-  "audioUrl": "https://storage.googleapis.com/juke-1379.appspot.com/juke-music/Dexter%20Britain/Creative%20Commons%20Volume%202/02%20After%20Christmas.mp3",
+  //"audioUrl":"https://storage.googleapis.com/juke-1379.appspot.com/juke-music/Dexter%20Britain/Creative%20Commons%20Volume%202/02%20After%20Christmas.mp3",
+  "audioUrl": "./public/yyy.mp3",
   "name": "After Christmas",
   "artist": "Dexter Britain",
   "album": "Creative Commons Volume 2",
   "genre": "Instrumental",
+  "localNoCors": "public",
   "artworkUrl": "https://learndotresources.s3.amazonaws.com/workshop/58cff0e769468300041ef9fd/creative_commons_vol_2.jpeg"
 }, {
-  "audioUrl": "https://storage.googleapis.com/juke-1379.appspot.com/juke-music/Dexter%20Britain/Creative%20Commons%20Volume%202/03%20My%20Song%20For%20January.mp3",
+  //"audioUrl":"https://storage.googleapis.com/juke-1379.appspot.com/juke-music/Dexter%20Britain/Creative%20Commons%20Volume%202/03%20My%20Song%20For%20January.mp3",
+  "audioUrl": "./public/zzz.mp3",
   "name": "My Song For January",
   "artist": "Dexter Britain",
   "album": "Creative Commons Volume 2",
   "genre": "Instrumental",
+  "localNoCors": "public",
   "artworkUrl": "https://learndotresources.s3.amazonaws.com/workshop/58cff0e769468300041ef9fd/creative_commons_vol_2.jpeg"
 }, {
   "audioUrl": "https://storage.googleapis.com/juke-1379.appspot.com/juke-music/Dexter%20Britain/Creative%20Commons%20Volume%202/04%20Notebook%20Reading.mp3",
