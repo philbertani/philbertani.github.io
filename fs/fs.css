@@ -1,7 +1,5 @@
 body h1 {text-align: center;}
 img { padding:1%; }
 a {vertical-align:top;}
-#t9 { width:20%; height:100%; }
-#coffee { width:20%; height:100%; }
-#breakout { width:20%; height:100%; }
-#fsLinks { height:30% }
+.resize { width:20%; height: 100%; }
+.fsLinks { height:30% }
