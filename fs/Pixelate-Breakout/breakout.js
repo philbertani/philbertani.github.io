@@ -308,6 +308,9 @@ class Sprite {
         }
         this.posXY = [...newPosXY_untruncated];
         
+        //there is some sort of bug here which was ont dealing with the 7x7 ball with
+        //zeros correctly, was getting some pixels not resetting to background color
+
         for ( const pixel of oldPixels) {
             //we need to check if our Sprite overlaps itself after being displaced
             //by game mechanics

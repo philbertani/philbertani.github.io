@@ -1,0 +1,77 @@
+<!doctype html>
+
+<head>
+
+  <title>annoying noises</title>
+  <link rel="stylesheet" href="osc.css" />
+
+</head>
+
+<body>
+
+  <!-- used https://webaudioapi.com/samples/oscillator/ as a starting point -->
+
+  <div id="container">
+    Please play with ALL the sliders!  The sounds may be annoying but the waveforms look cool!
+    If you want to have some real fun connect to a real speaker system and use low frequencies.
+    <br></br>
+
+    <div>
+      Frequency: <input id="frequency" type="range" min="5" max="1000" step="1" value="440"
+        oninput="sample.changeFrequency(this.value);">
+      &nbsp&nbsp
+      Detune: <input id="detune" type="range" min="-100" max="100" step=".01" value="66.97"
+        oninput="sample.changeDetune(this.value); this.nextElementSibling.value = this.value" >
+        <output>66.97</output>
+    </div>
+
+    <div>
+      Linear Scale: <input id="adjust" type="range" min="-200" max="200" step="1" value="0"        oninput="sample.changeAdjust(this.value); this.nextElementSibling.value = this.value">
+        <output>0</output>  <!--love this: nextElementSibling.value shortcut-->
+      &nbsp&nbsp
+      Scale 2D: <input id="adjust2" type="range" min="-200" max="200" step="1" value="-94"
+        oninput="sample.changeAdjust2(this.value);this.nextElementSibling.value = this.value">
+        <output>-94</output>
+
+    </div>
+
+    <div>
+      <input type="radio" name="ir" value="0" class="effect" onclick="sample.changeType('sine')">Sine</input>
+      <input type="radio" name="ir" value="1" class="effect" onclick="sample.changeType('square')">Square</input>
+      <input type="radio" name="ir" value="2" class="effect" onclick="sample.changeType('sawtooth')">Sawtooth</input>
+      <input type="radio" name="ir" value="3" class="effect" onclick="sample.changeType('triangle')">Triangle</input>
+    </div>
+
+    <div>
+      <input type="radio" name="ir2" value="0" class="effect" onclick="sample.changeType2('sine')">Sine</input>
+      <input type="radio" name="ir2" value="1" class="effect" onclick="sample.changeType2('square')">Square</input>
+      <input type="radio" name="ir2" value="2" class="effect" onclick="sample.changeType2('sawtooth')">Sawtooth</input>
+      <input type="radio" name="ir2" value="3" class="effect" onclick="sample.changeType2('triangle')">Triangle</input>
+      &nbsp
+      <a href="https://webaudioapi.com/samples/oscillator/" target="_blank">Inspired by this Sample</a>
+      &nbsp &nbsp
+      <a href="https://webaudioapi.com/samples">More Web Audio Samples</a>
+    </div>
+
+    <p><button onclick="sample.clampp()">Clamp or Not</button></p>
+    <p><button onclick="sample.toggle()">Play/pause</button></p>
+
+  
+
+  </div>
+
+  <div>
+    <canvas style="background: white;"></canvas>
+    <!-- <script src="shared.js"></script> -->
+    <script src="oscilloscope.js"></script>
+
+    <script>
+      var sample = new OSC();
+    </script>
+
+   
+  </div>
+
+</body>
+
+</html>
