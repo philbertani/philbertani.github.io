@@ -25,6 +25,11 @@ function startGame() {
 
     GO.audioInit = false;
 
+    //ball speed modifiers
+    GO.bottomWallIncrease = [1.35,1.35]
+    GO.topWallIncrease = [1.07,1.07]
+    GO.brickIncrease = [1.02,1.02]
+
     GO.mousePixelPos = [100,0];
     GO.messages = document.getElementById('messages');
     GO.mainScreen = document.getElementById('mainScreen');
@@ -342,8 +347,9 @@ function RGBAcss( rgba ) {
 }
 
 class Ball extends Sprite {
-  //we could vary colors by using more numbers
-  //and then mapping those numbers to rgba vectors
+  //the Sprite movement logic is messing up when we
+  //pad with 0 for background color - fix at some point
+
   /*     bitmap = [ 0,0,1,1,1,0,0,
                0,1,2,2,2,1,0,
                1,2,2,3,2,2,1,
@@ -354,7 +360,7 @@ class Ball extends Sprite {
 
   bitmap = [2, 3, 2, 3, 1, 3, 2, 3, 2];
 
-/*   colorMap = [
+  /*   colorMap = [
     [200, 250, 200, 0.7],
     [255, 100, 200, 0.9],
     [0, 255, 255, 1],
@@ -392,46 +398,44 @@ class Ball extends Sprite {
     this.maxDim = [...this.dim];
     this.centerXY = ivecMul(this.maxDim, 0.5);
     //trunc of 7*.5 = 3 which is the middle
- 
-    const rnd = Math.trunc(((Math.random() - 0.5) * 120) / 2)
-    this.posXY = [75 + rnd , 30 ];
+
+    const rnd = Math.trunc(((Math.random() - 0.5) * 120) / 2);
+    this.posXY = [75 + rnd, 30];
     this.speed = length(this.dv);
-    this.updatePosition([ 76 + rnd, 30 ]);
+    this.updatePosition([76 + rnd, 30]);
   }
 
   hitPaddle(pos) {
-
-
-      if ( this.dv[1] > 0 && pos[1] + 1 >= GO.paddle.posXY[1] 
-        || this.dv[1] < 0 && pos[1] -1 >= GO.paddle.posXY[1] ) {
-
-        if (
-          pos[0] + 1 > GO.paddle.posXY[0] &&
-          pos[0] + 1 < GO.paddle.posXY[0] + GO.paddle.maxDim[0]
-        ) {
-          //get distance from center
-          //console.log('hit paddle')
-          return (
-            GO.paddle.posXY[0] +
-            GO.paddle.centerXY[0] -
-            (pos[0] + this.centerXY[0])
-          );
-        }
+    if (
+      (this.dv[1] > 0 && pos[1] + 1 >= GO.paddle.posXY[1]) ||
+      (this.dv[1] < 0 && pos[1] - 1 >= GO.paddle.posXY[1])
+    ) {
+      if (
+        pos[0] + 1 > GO.paddle.posXY[0] &&
+        pos[0] + 1 < GO.paddle.posXY[0] + GO.paddle.maxDim[0]
+      ) {
+        //get distance from center
+        //console.log('hit paddle')
+        return (
+          GO.paddle.posXY[0] +
+          GO.paddle.centerXY[0] -
+          (pos[0] + this.centerXY[0])
+        );
       }
- 
+    }
 
     return -1e6;
   }
 
-  hitWall(pos) {
+  hitBrick(pos) {
     //if we changed screen size then we have to multiply PixelDimXY by the ratio of new to old
 
     let actualPos = [...pos]; //ivecAdd(pos,this.centerXY);
 
-    actualPos[1] += 7;
+    actualPos[1] += 7;  //have to account for the fact that pos is top left corner
     actualPos[0] += 4;
     //actualPos[1] += 4*this.centerXY[1];
-    // actualPos[0] += 2*this.centerXY[0];
+    //actualPos[0] += 2*this.centerXY[0];
 
     actualPos = ivecMul(actualPos, GO.mainGrid.PixelDimXY, false);
     //console.log(actualPos, pos, GO.mainGrid.PixelDimXY);
@@ -463,10 +467,8 @@ class Ball extends Sprite {
 
     //console.log( 'ball pre:',newPos)
 
-    if (this.hitWall(newPos)) {
-      //wall meaning the wall of bricks
-
-      //console.log('hitwall: ', this.dv[1])
+    if (this.hitBrick(newPos)) {
+      //console.log('hitBrick: ', this.dv[1])
       this.dv[1] = -this.dv[1];
       GO.brickCount--;
       console.log("num bricks left", GO.brickCount);
@@ -475,6 +477,12 @@ class Ball extends Sprite {
         clearInterval(GO.gameTimer);
       }
       soundIndex = 2;
+
+      const currentSpeed = length(this.dv);
+      if (currentSpeed < 3) {
+        this.dv = ivecMul(this.dv, GO.brickIncrease, false);
+        this.speed = length(this.dv);
+      }
     }
 
     let paddleOffset = this.hitPaddle(newPos);
@@ -483,7 +491,7 @@ class Ball extends Sprite {
       const oldVel = [...this.dv];
       const oldSpeed = this.speed;
       this.dv[1] = -this.dv[1];
-      this.dv[0] = this.dv[0] - paddleOffset / 6; //make it scale non linearly from center
+      this.dv[0] = this.dv[0] - paddleOffset / 6;
 
       this.speed = length(this.dv); //may change slightly due to integer truncation
 
@@ -491,15 +499,11 @@ class Ball extends Sprite {
 
       soundIndex = 3;
 
+      //important to keep track of actual ball speed as FLOAT
+      //and then integer truncate when it is finally used or else we 
+      //get nasty ball behavior
       this.dv[0] *= ratio;
       this.dv[1] *= ratio;
-
-      //make sure the horizontal and vertical speeds are
-      //at least one because velocity gets truncated in the
-      //end to find the integer pixel position
-
-      //const sgn = Math.sign(this.dv[0]);
-      //this.dv[0] = Math.max( Math.abs(this.dv[0]),1) * sgn
 
       const sgn2 = Math.sign(this.dv[1]);
       this.dv[1] = Math.max(Math.abs(this.dv[1]), 0.3) * sgn2;
@@ -511,6 +515,7 @@ class Ball extends Sprite {
       paddleOffset = -1e6;
     }
 
+    //hit bottom wall - penalize
     if (newPos[1] + this.maxDim[1] > GO.mainDim.height) {
       console.log("should be dead");
       GO.colorEffects.style.backgroundColor = "rgba(0,0,255,.5)";
@@ -522,12 +527,13 @@ class Ball extends Sprite {
       const currentSpeed = length(this.dv);
       this.dv[1] = -this.dv[1];
       if (currentSpeed < 5) {
-        this.dv = ivecMul(this.dv, [1.1, 1.1], false);
+        this.dv = ivecMul(this.dv, GO.bottomWallIncrease, false);
         this.speed = length(this.dv);
       }
       soundIndex = 4;
     }
 
+    //hit top wall
     if (newPos[1] < 1) {
       GO.colorEffects.style.backgroundColor = "rgba(255,0,255,.5)";
       setTimeout(() => {
@@ -535,8 +541,15 @@ class Ball extends Sprite {
       }, 100);
       this.dv[1] = -this.dv[1];
       soundIndex = 5;
+
+      const currentSpeed = length(this.dv);
+      if (currentSpeed < 3) {
+        this.dv = ivecMul(this.dv, GO.topWallIncrease, false);
+        this.speed = length(this.dv);
+      }
     }
 
+    //hit left or right walls
     if (newPos[0] + this.maxDim[0] >= GO.mainDim.width || newPos[0] <= 0) {
       //console.log(this.dv)
       this.dv[0] = -this.dv[0];
@@ -544,7 +557,8 @@ class Ball extends Sprite {
     }
 
     //pos.XY is still the left top corner like a div
-    //still need to clamp it because we want to increase dv
+    //still need to clamp it in case the latest dv takes it
+    //beyond the bound
     newPos[0] = Math.min(
       GO.mainDim.width - this.maxDim[0],
       Math.max(0, newPos[0])
@@ -567,7 +581,7 @@ class Paddle extends Sprite {
 
     constructor() {
 
-        super();  //all of the "rendering" gets done in the parent class
+        super();  //all of the "rendering" gets done in the parent class Sprite
       
         this.dim = ivecMul( [GO.mainDim.width,GO.mainDim.height], this.pctDim );
 
@@ -588,10 +602,6 @@ class Paddle extends Sprite {
 
         this.maxDim = [...this.dim]; 
         this.centerXY = ivecMul(this.maxDim,.5);
-
-/*         for (let y=0; y<this.dim[1]; y++ ) {
-            this.PixelMap[y][this.centerXY[0]] = 'blue'
-        } */
 
         //set initial position
         this.posXY = [50,88];
@@ -629,7 +639,9 @@ function brickColors(row,col,color,gridName) {
     color[2] = (color[2]+row*col)%255;
     let alpha = .8; //color[3];
     if (row < 3) { 
-        alpha = 0;  //setting alpha to 0 makes it transparent, this is how we will remove bricks too
+        alpha = 0;  
+        //setting alpha to 0 makes it transparent, this is how we will remove bricks too
+        //if alpha is 0 then the ball ignores the brick as well
         gridName.count --;
     }
     return `rgba(${color[0]},${color[1]},${color[2]},${alpha})`
@@ -743,11 +755,7 @@ class makeBrickWall {
               thisTD.brickNum = [rowNum, brickNum];
               brick.push(thisTD);
 
-              //const cc = (rowNum+1)*(brickNum+1)*20
-              //const [R,G,B] = [ cc%255, (cc*cc)%255, (cc*cc*cc*cc)%255 ]
-
               const cc = 200 - rowNum
-              //const [R,G,B] = [ 200 - rowNum, 180-rowNum, .3 ]
               const [R,G,B,A] = [ 200, 180, 0, .025*(rowNum+7)]
               thisTD.style.backgroundColor = `rgba(${R},${G},${B},${A})`;
             }
