@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/static/css/main.9e692090.css",
-    "main.js": "/static/js/main.e9f40e36.js",
-    "static/js/787.7c1b15f6.chunk.js": "/static/js/787.7c1b15f6.chunk.js",
-    "index.html": "/index.html",
-    "main.9e692090.css.map": "/static/css/main.9e692090.css.map",
-    "main.e9f40e36.js.map": "/static/js/main.e9f40e36.js.map",
-    "787.7c1b15f6.chunk.js.map": "/static/js/787.7c1b15f6.chunk.js.map"
+    "main.css": "/unicodeMemory/static/css/main.9e692090.css",
+    "main.js": "/unicodeMemory/js/main.e9f40e36.js",
+    "static/js/787.7c1b15f6.chunk.js": "/unicodeMemory/static/js/787.7c1b15f6.chunk.js",
+    "index.html": "/unicodeMemory/index.html",
+    "main.9e692090.css.map": "/unicodeMemory/static/css/main.9e692090.css.map",
+    "main.e9f40e36.js.map": "/unicodeMemory/static/js/main.e9f40e36.js.map",
+    "787.7c1b15f6.chunk.js.map": "/unicodeMemory/static/js/787.7c1b15f6.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.9e692090.css",
-    "static/js/main.e9f40e36.js"
+    "unicodeMemorystatic/css/main.9e692090.css",
+    "unicodeMemorystatic/js/main.e9f40e36.js"
   ]
 }
