@@ -29,6 +29,7 @@ a {
   flex-direction: row;
   justify-content: flex-start;
 } */
+
 #graphicsOptions img:hover {
   position: relative;
   transform: scale(1.8);
