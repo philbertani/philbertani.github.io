@@ -1,12 +1,12 @@
 {
   "files": {
-    "main.js": "/avtoy/static/js/main.482523a7.js",
-    "static/js/496.13fee837.chunk.js": "/avtoy/static/js/496.13fee837.chunk.js",
-    "index.html": "/avtoy/index.html",
-    "main.482523a7.js.map": "/avtoy/static/js/main.482523a7.js.map",
-    "496.13fee837.chunk.js.map": "/avtoy/static/js/496.13fee837.chunk.js.map"
+    "main.js": "/avToy/static/js/main.482523a7.js",
+    "static/js/496.13fee837.chunk.js": "/avToy/static/js/496.13fee837.chunk.js",
+    "index.html": "/avToy/index.html",
+    "main.482523a7.js.map": "/avToy/static/js/main.482523a7.js.map",
+    "496.13fee837.chunk.js.map": "/avToy/static/js/496.13fee837.chunk.js.map"
   },
   "entrypoints": [
-    "/avtoy/static/js/main.482523a7.js"
+    "/avToy/static/js/main.482523a7.js"
   ]
 }
