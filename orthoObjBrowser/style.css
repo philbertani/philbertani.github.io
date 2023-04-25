@@ -1,24 +1,9 @@
-.vidDiv {
-    position:relative; 
-    width: max(20vw, 400px);
-}
-
-video {
-    /* object-fit: cover; */
-
-    margin-top: 1vh;
-    width: 100%;
-
-}
-
 #canvas {
     position:relative;
     /* margin-left: 1vw; */
-    margin: 0;
-    width: 80vw;
-    height: 90vh;
-    background-color: rgb(0,0,100);
-  
+    margin: 5px;
+    width: 60vw;
+    height: 90vh;  
 }
 
 .main { 
@@ -28,12 +13,14 @@ video {
 }
 
 .controls {
-    margin-left:5px;
+    margin:5px;
     width: 18vw;
     height: 90vh;
     border: 2px solid black;
     display: flex;
     flex-direction: column;
+    overflow: auto;
+    max-height: 90vh;
 }
 
 .objLabel {
@@ -45,4 +32,22 @@ video {
     font-size: 3vh;
 }
 
-p { word-break: break-all}
+p { margin: 5px; word-break: break-all}
+
+#infoDiv{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    overflow:auto;
+    height: 100%;
+    max-height: 90vh;
+}
+
+.objDiv {
+    text-align: center;
+    width: 100%;
+}
+
+.objDiv:hover {
+    background-Color: yellow;
+}
