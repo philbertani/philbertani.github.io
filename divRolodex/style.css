@@ -1,0 +1,48 @@
+
+* { box-sizing: border-box }
+
+.overlap {
+   position: absolute; left: 0px; top: 0px;
+   width:90%; height:60%;
+   border-top-right-radius: 50px;
+   border-bottom-right-radius: 50px;
+   background-color: blue;
+   text-align: left;
+   max-width: 70vw;
+   min-width: 800px;
+   border-style: solid;
+   border-color: black;
+}
+
+.overlap2 {
+   position: absolute;
+   width: 80%;
+   top: 50%; right: 50%;
+   transform: translate(+50%, -50%);
+   font-size: 30px;
+}
+
+.container { 
+   position: absolute; left: 0px; top: 0px;
+   margin-left: 10px; margin-top:10px;
+   width:100%; height: 100% }
+
+.container button { position: absolute; top: 90% }
+
+.fieldName { position: absolute; right:50%; 
+   transform: translate(50%, 0%); color: white;
+   font-size: 40px; }
+
+.fieldName2 { position: absolute; right:50%; top:80%; 
+   transform: translate(50%, 0%); color: white;
+   font-size: 40px; }
+
+img { max-width: 80%; max-height: 100%}
+
+.info { position: absolute; right:1%; top: 40%;
+   color: black; font-size: 40px; }
+
+.info2 { position: absolute; left:0%; bottom:0%;
+   color: black; font-size: 20px; }
+
+ 
